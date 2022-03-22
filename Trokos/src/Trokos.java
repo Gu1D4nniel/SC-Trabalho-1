@@ -92,6 +92,14 @@ public class Trokos {
 
 					System.out.println(respostaPedido);
 				}
+				else if (respostaOp.contains("newgroup") || respostaOp.charAt(0) == 'n') {
+
+					System.out.println(respostaPedido);
+				}
+				else if (respostaOp.contains("addu") || respostaOp.charAt(0) == 'a') {
+
+					System.out.println(respostaPedido);
+				}
 			}
 
 			out.close();
