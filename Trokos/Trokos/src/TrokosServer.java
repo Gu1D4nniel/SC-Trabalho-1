@@ -11,6 +11,8 @@ import java.nio.charset.StandardCharsets;
 
 import java.util.Scanner;
 
+import com.google.zxing.WriterException;
+
 /*Como usar 
  * java TrokosServer <port>
  * por omissao o porto eh 45678
@@ -40,12 +42,14 @@ public class TrokosServer extends OperationsTrokos {
 		}
 		// clearDB
 		else if (args[0].equals("clearDB")) {
-			File fileToDelete = new File("db.txt");
+			File fileToDelete = new File("./db.txt");
 			fileToDelete.delete();
 
-			File folderData = new File("dataUsers");
-			File folderGrupos = new File("groups");
-			File folderRequests = new File("requests");
+			File folderData = new File("./dataUsers");
+			File folderGrupos = new File("./groups");
+			File folderRequests = new File("./requests");
+			File folderQRcodes = new File("./QRcodes");
+			File folderQRrequests = new File ("./QRrequests");
 
 			File[] files = folderData.listFiles();
 			for (File f : files) {
@@ -62,6 +66,20 @@ public class TrokosServer extends OperationsTrokos {
 
 			File[] filesRequests = folderRequests.listFiles();
 			for (File f : filesRequests) {
+
+				if (f.isFile() && f.exists())
+					f.delete();
+			}
+
+			File[] filesQRrequests = folderQRrequests.listFiles();
+			for (File f : filesQRrequests) {
+
+				if (f.isFile() && f.exists())
+					f.delete();
+			}
+			
+			File[] filesQRcodes = folderQRcodes.listFiles();
+			for (File f : filesQRcodes) {
 
 				if (f.isFile() && f.exists())
 					f.delete();
@@ -130,6 +148,12 @@ public class TrokosServer extends OperationsTrokos {
 				File requestsFile = new File("requests");
 				requestsFile.mkdir();
 
+				File qrRequests = new File("qrRequests");
+				qrRequests.mkdir();
+				
+				File qrCodes = new File("QRcodes");
+				qrCodes.mkdir();
+
 				// Tem o true pq senao faz sempre overwrite aos dados do ficheiro
 				PrintWriter pw = new PrintWriter(new FileWriter(fileDb, true));
 				Scanner sc = new Scanner(fileDb);
@@ -182,15 +206,17 @@ public class TrokosServer extends OperationsTrokos {
 
 							if (respostaOp.contains(("balance")) || respostaOp.charAt(0) == 'b') {
 								String balance = String.valueOf(balance(user));
-								System.out.println("BALANCE:" + balance);
+
 								outStream.writeObject(balance);
 								outStream.flush();
+								outStream.close();
 
 							} else if (respostaOp.contains(("makepayment")) || respostaOp.charAt(0) == 'm') {
 								String[] split = respostaOp.split(" ");
 								if (split.length != 3) {
 									outStream.writeObject("Dados nao estao completos");
 									outStream.flush();
+									outStream.close();
 									return;
 								}
 								String destino = split[1];
@@ -199,15 +225,19 @@ public class TrokosServer extends OperationsTrokos {
 								if (resposta == 0) {
 									outStream.writeObject("Nao foi encontrado o destino");
 									outStream.flush();
+									outStream.close();
 								} else if (resposta == -1) {
 									outStream.writeObject("Nao tem saldo");
 									outStream.flush();
+									outStream.close();
 								} else if (resposta == -2) {
 									outStream.writeObject("O user nao pode ser igual ao destino");
 									outStream.flush();
+									outStream.close();
 								} else {
 									outStream.writeObject("O pagamento foi feito");
 									outStream.flush();
+									outStream.close();
 								}
 
 								// REQUEST PAYMENT
@@ -216,6 +246,7 @@ public class TrokosServer extends OperationsTrokos {
 								if (split.length != 3) {
 									outStream.writeObject("Dados nao estao completos");
 									outStream.flush();
+									outStream.close();
 									return;
 								}
 								String destino = split[1];
@@ -281,6 +312,8 @@ public class TrokosServer extends OperationsTrokos {
 								if (check == 0) {
 									outStream.writeObject("Este grupo ja existe");
 									outStream.flush();
+									outStream.close();
+									return;
 
 								}
 								outStream.writeObject("Grupo criado com sucesso");
@@ -291,6 +324,7 @@ public class TrokosServer extends OperationsTrokos {
 								if (split.length != 3) {
 									outStream.writeObject("Dados nao estao completos");
 									outStream.flush();
+									outStream.close();
 									return;
 								}
 								String nomeMembro = split[1];
@@ -300,27 +334,59 @@ public class TrokosServer extends OperationsTrokos {
 
 									outStream.writeObject("Nao existe este grupo");
 									outStream.flush();
+									outStream.close();
 
 								} else if (check == -1) {
 									outStream.writeObject("Apenas o owner pode adicionar membros");
 									outStream.flush();
+									outStream.close();
 								} else if (check == -2) {
 									outStream.writeObject("Este user ja faz parte do grupo");
 									outStream.flush();
+									outStream.close();
+								} else {
+									outStream.writeObject("Novo membro adicionado com sucesso");
+									outStream.flush();
+									outStream.close();
 								}
-								outStream.writeObject("Novo membro adicionado com sucesso");
 							} else if (respostaOp.contains("obtainQRcode") || respostaOp.charAt(0) == 'o') {
 								String[] split = respostaOp.split(" ");
+
 								if (split.length != 2) {
 									outStream.writeObject("Dados nao estao completos");
 									outStream.flush();
+									outStream.close();
 									return;
 								}
+
 								float valor = Float.parseFloat(split[1]);
+								String qr = obtainQRcode(user, valor);
 
-							} else {
+								outStream.writeObject(qr);
+								outStream.flush();
+								outStream.close();
 
-								return;
+							}else if (respostaOp.contains("confirmQRcode") || respostaOp.charAt(0) == 'c') {
+								String [] split = respostaOp.split(" ");
+								
+								if (split.length != 2) {
+									outStream.writeObject("Dados nao estao completos");
+									outStream.flush();
+									outStream.close();
+									return;
+								}
+								String id = split[1];
+								if(confirmQRcode(user,id ) == 1) {
+									outStream.writeObject("Pagamento feito com sucesso");
+									outStream.flush();
+									outStream.close();
+								}
+							}
+							
+							else {
+								outStream.flush();
+								outStream.close();
+
 							}
 
 							return;
@@ -329,6 +395,7 @@ public class TrokosServer extends OperationsTrokos {
 							System.out.println("password incorreta");
 							outStream.writeObject("Password incorreta");
 							outStream.flush();
+							outStream.close();
 							return;
 						}
 
@@ -341,6 +408,9 @@ public class TrokosServer extends OperationsTrokos {
 					e1.printStackTrace();
 				} catch (FileNotFoundException e2) {
 					e2.printStackTrace();
+				} catch (WriterException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
 
 				outStream.close();

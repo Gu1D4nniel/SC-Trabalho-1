@@ -7,8 +7,20 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.UUID;
+
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.MultiFormatWriter;
+import com.google.zxing.WriterException;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 
 public class OperationsTrokos implements Operations {
 
@@ -357,6 +369,15 @@ public class OperationsTrokos implements Operations {
 		return 1;
 	}
 
+	/**
+	 * Metodo que faz update da informaçao acerca dos grupos dos ficheiros no
+	 * dataUsers
+	 * 
+	 * @param user      user que vai sofrer update
+	 * @param nomeGrupo nome do grupo que vai ser inserido no ficheiro do user
+	 * @param owner     true se for owner, false se for apenas membro
+	 * @throws IOException
+	 */
 	private void addToDataUser(String user, String nomeGrupo, boolean owner) throws IOException {
 		// Adiciona ao seu user file o novo grupo a que aderiu
 		File fileUser = new File("dataUsers/" + user + ".txt");
@@ -368,7 +389,6 @@ public class OperationsTrokos implements Operations {
 		while ((j = ips.read()) != -1) {
 			data += (char) j;
 		}
-		
 
 		String[] lines = data.split("\n");
 		ips.close();
@@ -429,7 +449,7 @@ public class OperationsTrokos implements Operations {
 
 		for (String l : lines) {
 			if (l.contains(id)) {
-				
+
 				payment = l.split("/");
 				String destino = payment[1];
 				float valor = Float.parseFloat(payment[2]);
@@ -455,5 +475,159 @@ public class OperationsTrokos implements Operations {
 		ops.close();
 
 		return check;
+	}
+
+	public int dividepayment(String owner, String nomeGrupo, float valor) throws IOException {
+		File fileGrupo = new File("groups/" + nomeGrupo + ".txt");
+
+		FileInputStream fis = new FileInputStream(fileGrupo);
+		InputStream ips = new BufferedInputStream(fis);
+
+		String data = "";
+		int j;
+		while ((j = ips.read()) != -1) {
+			data += (char) j;
+		}
+		String[] lines = data.split(data);
+
+		// Colocar aqui os users que vao receber o pedido para pagars
+		List<String> listUsers = new ArrayList<>();
+
+		for (String l : lines) {
+
+			if (l.contains("Owner")) {
+				String[] lineOwner = l.split(":");
+				if (!lineOwner[1].equals(owner)) {
+					// O owner deste grupo nao coincide com o user que fez o pedido
+					return 0;
+				} else {
+					listUsers.add(lineOwner[1]);
+
+				}
+			} else {
+				String[] lineMembers = l.split(":");
+				String membersString = lineMembers[1];
+				String[] members = membersString.split(",");
+
+				for (String m : members) {
+					listUsers.add(m);
+				}
+
+			}
+
+			for (String u : listUsers) {
+				System.out.println(u);
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * Metodo que devolve uma lista com os membros do grupo que ainda nao pagaram o
+	 * pedido
+	 * 
+	 * @param user      utilizador que pediu para ver o pedido
+	 * @param nomeGrupo id do grupo
+	 * @return erro ou uma lista com os membros do grupo que ainda nao pagaram
+	 * @throws IOException
+	 */
+	public String statuspayment(String user, String nomeGrupo) throws IOException {
+		return null;
+
+	}
+
+	// Criar um id para o qrcode que vai ser usado na operacao confirm qrcode
+
+	public String obtainQRcode(String user, float valor) throws WriterException, IOException {
+
+		UUID uuid = UUID.randomUUID();
+		String[] split = uuid.toString().split("-");
+		String id = split[0];
+		String valorS = String.valueOf(valor);
+
+		String cabecalho = "USER/VALOR/ID\n";
+		String data = user + "/" + valorS + "/" + id;
+		File fileQR = new File("QRrequests/data.txt");
+
+		FileOutputStream fin = new FileOutputStream(fileQR, true);
+		OutputStream ops = new BufferedOutputStream(fin);
+
+		ops.write((data + "\n").getBytes());
+		ops.flush();
+		ops.close();
+		// data that we want to store in the QR code
+
+		// path where we want to get QR Code
+		String path = "QRcodes/" + id + ".png";
+		// Encoding charset to be used
+		String charset = "UTF-8";
+		Map<EncodeHintType, ErrorCorrectionLevel> hashMap = new HashMap<EncodeHintType, ErrorCorrectionLevel>();
+		// generates QR code with Low level(L) error correction capability
+		hashMap.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.L);
+		// invoking the user-defined method that creates the QR code
+		generateQRcode(cabecalho + data, path, charset, hashMap, 200, 200);// increase or decrease height and width
+																			// accodingly
+
+		return "QRCode criado com sucesso";
+
+	}
+
+	public void generateQRcode(String data, String path, String charset, Map map, int w, int h)
+			throws WriterException, IOException {
+		// the BitMatrix class represents the 2D matrix of bits
+		// MultiFormatWriter is a factory class that finds the appropriate Writer
+		// subclass for the BarcodeFormat requested and encodes the barcode with the
+		// supplied contents.
+		BitMatrix matrix = new MultiFormatWriter().encode(new String(data.getBytes(charset), charset),
+				BarcodeFormat.QR_CODE, w, h);
+		MatrixToImageWriter.writeToFile(matrix, path.substring(path.lastIndexOf('.') + 1), new File(path));
+	}
+
+	/** APAGAR O QRCODE E FAZER VERIFICACOES
+	 * 
+	 */
+	public int confirmQRcode(String user, String id) throws IOException {
+		File file = new File("qrRequests/data.txt");
+
+		FileInputStream fis = new FileInputStream(file);
+		InputStream ips = new BufferedInputStream(fis);
+
+		String data = "";
+		int j;
+		while ((j = ips.read()) != -1) {
+			data += (char) j;
+		}
+		
+
+		String destino = "";
+		float valor = 0;
+
+		ips.close();
+
+		FileOutputStream fin = new FileOutputStream(file, false);
+		OutputStream ops = new BufferedOutputStream(fin);
+
+		String[] lines = data.split("\n");
+		for (String l : lines) {
+			String[] lineData = l.split("/");
+
+			if (lineData[2].equals(id.trim())) {
+
+				destino = lineData[0];
+
+				valor = Float.parseFloat(lineData[1]);
+				l = "".trim();
+			}
+			ops.write((l+"\n").getBytes());
+		}
+		ops.flush();
+		ops.close();
+
+		if (makepayment(user, destino, valor) != 1) {
+			return 0;
+		}
+
+		return 1;
+
 	}
 }
