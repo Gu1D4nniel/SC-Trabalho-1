@@ -119,6 +119,10 @@ public class Trokos {
 					System.out.println(respostaPedido);
 				} else if (respostaOp.contains("statuspayments") || respostaOp.charAt(0) == 's') {
 					System.out.println(respostaPedido);
+				}else if (respostaOp.contains("history") || respostaOp.charAt(0) == 'h') {
+					System.out.println(respostaPedido);
+				}else {
+					System.out.println(respostaPedido);
 				}
 			}
 

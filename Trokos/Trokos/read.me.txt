@@ -1,1 +1,23 @@
-O servidor tem de se correr no eclipse
+COMO CORRER:
+O ficheiro TrokosServer tem de ser corrido no eclipse não conseguimos correr o servidor no cmd por causa dos jars do QRCode.
+No eclipse (TrokosServer),  se corrermos o programa com o args[0] como "clearDB" elimina todos os ficheiros criados até agora (ajudou-nos a testar).
+O cliente corre na linha de comandos com a fórmula: java Trokos <hostname:port> <user> <password>
+Por omissão o porto é o 45678.
+
+
+
+PASTAS CRIADAS:
+A pasta dataUser é onde vão ser colocadas as informações do user (balance, grupos a que pertence).
+A pasta groupHistory é onde vai ser colocada a history de pagamentos de cada grupo.
+A pasta groupPayments é onde vão ser colocados os pagamentos pendentes de cada grupo.
+A pasta groups contém todos os grupos criados.
+A pasta jars é onde se colocaram os jars para criar o QRCode.
+A pasta QRcodes é a pasta que contém todos os QRcodes.
+A pasta qrRequests é a pasta que contém todos os requests criado a partir de um qr code.
+A pasta requests contém todos os requests individuais feitos a cada utilizador.
+
+
+Trabalho realizado por:
+Manuel Dias 53529
+Vitor Martins 48310
+Guilherme Salgueiro 55397

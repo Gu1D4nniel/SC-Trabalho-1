@@ -120,6 +120,9 @@ public class TrokosServer extends OperationsTrokos {
 
 				File groupHistory = new File("groupHistory");
 				groupHistory.mkdir();
+				
+				File userHistory = new File("history");
+				userHistory.mkdir();
 
 				// Tem o true pq senao faz sempre overwrite aos dados do ficheiro
 				PrintWriter pw = new PrintWriter(new FileWriter(fileDb, true));
@@ -139,7 +142,7 @@ public class TrokosServer extends OperationsTrokos {
 					int p = Byte.toUnsignedInt(sizeP);
 
 					char[] arrayU = new char[u + p + 1];
-					char[] arrayP = new char[p];
+					
 
 					// cria buffers para receber password e username
 					byte[] bufferU = new byte[arrayU.length];
@@ -177,6 +180,7 @@ public class TrokosServer extends OperationsTrokos {
 								outStream.writeObject(balance);
 								outStream.flush();
 								outStream.close();
+								addToHistory(user, respostaOp);
 
 							} else if (respostaOp.contains(("makepayment")) || respostaOp.charAt(0) == 'm') {
 								String[] split = respostaOp.split(" ");
@@ -205,6 +209,7 @@ public class TrokosServer extends OperationsTrokos {
 									outStream.writeObject("O pagamento foi feito");
 									outStream.flush();
 									outStream.close();
+									addToHistory(user, respostaOp);
 								}
 
 								// REQUEST PAYMENT
@@ -230,6 +235,7 @@ public class TrokosServer extends OperationsTrokos {
 									outStream.writeObject("O pedido de pagamento foi feito com sucesso");
 									outStream.flush();
 									outStream.close();
+									addToHistory(user, respostaOp);
 								}
 
 							} else if (respostaOp.contains("viewrequests") || respostaOp.charAt(0) == 'v') {
@@ -238,6 +244,7 @@ public class TrokosServer extends OperationsTrokos {
 								outStream.writeObject(resposta);
 								outStream.flush();
 								outStream.close();
+								addToHistory(user, respostaOp);
 
 							} else if (respostaOp.contains("payrequest") || respostaOp.charAt(0) == 'p') {
 								String[] split = respostaOp.split(" ");
@@ -258,11 +265,18 @@ public class TrokosServer extends OperationsTrokos {
 									outStream.writeObject("Nao existe este id");
 									outStream.flush();
 									outStream.close();
-								} else {
+								} else if (check == -2) {
+									outStream.writeObject("Algo nao correu bem");
+									outStream.flush();
+									outStream.close();
+								}
+								
+								else {
 
 									outStream.writeObject("Pagamento feito");
 									outStream.flush();
 									outStream.close();
+									addToHistory(user, respostaOp);
 								}
 							}
 
@@ -285,6 +299,7 @@ public class TrokosServer extends OperationsTrokos {
 								}
 								outStream.writeObject("Grupo criado com sucesso");
 								outStream.flush();
+								addToHistory(user, respostaOp);
 
 							} else if (respostaOp.contains("dividepayment") || respostaOp.charAt(0) == 'd') {
 								String[] split = respostaOp.split(" ");
@@ -301,6 +316,7 @@ public class TrokosServer extends OperationsTrokos {
 									outStream.writeObject("Divisao foi feito com sucesso");
 									outStream.flush();
 									outStream.close();
+									addToHistory(user, respostaOp);
 								} else if (check == 0) {
 									outStream.writeObject("O user que fez o pedido nao eh o dono do grupo");
 									outStream.flush();
@@ -327,6 +343,7 @@ public class TrokosServer extends OperationsTrokos {
 								outStream.writeObject("Membros que ainda nao pagaram: "+membros);
 								outStream.flush();
 								outStream.close();
+								addToHistory(user, respostaOp);
 								
 							}
 
@@ -359,12 +376,14 @@ public class TrokosServer extends OperationsTrokos {
 									outStream.writeObject("Novo membro adicionado com sucesso");
 									outStream.flush();
 									outStream.close();
+									addToHistory(user, respostaOp);
 								}
 							}else if (respostaOp.contains("groups") || respostaOp.charAt(0) == 'g') {
 								String grupos = groups(user);
 								outStream.writeObject(grupos);
 								outStream.flush();
 								outStream.close();
+								addToHistory(user, respostaOp);
 							}
 							else if (respostaOp.contains("obtainQRcode") || respostaOp.charAt(0) == 'o') {
 								String[] split = respostaOp.split(" ");
@@ -382,6 +401,7 @@ public class TrokosServer extends OperationsTrokos {
 								outStream.writeObject(qr);
 								outStream.flush();
 								outStream.close();
+								addToHistory(user, respostaOp);
 
 							} else if (respostaOp.contains("confirmQRcode") || respostaOp.charAt(0) == 'c') {
 								String[] split = respostaOp.split(" ");
@@ -397,10 +417,18 @@ public class TrokosServer extends OperationsTrokos {
 									outStream.writeObject("Pagamento feito com sucesso");
 									outStream.flush();
 									outStream.close();
+									addToHistory(user, respostaOp);
 								}
+							} else if (respostaOp.contains("history") || respostaOp.charAt(0) == 'h') {
+								String history = history(user);
+								outStream.writeObject(history);
+								outStream.flush();
+								outStream.close();
+								addToHistory(user, respostaOp);
 							}
 
 							else {
+								outStream.writeObject("Por favor inisira um pedido válido");
 								outStream.flush();
 								outStream.close();
 
@@ -439,6 +467,16 @@ public class TrokosServer extends OperationsTrokos {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+		}
+
+		private void addToHistory(String user, String respostaOp) throws IOException {
+			File file = new File("history/"+user+".txt");
+			
+			PrintWriter pw = new PrintWriter(new FileWriter(file, true));
+			
+			pw.println(respostaOp);
+			pw.close();
+			
 		}
 
 		/**
@@ -484,6 +522,7 @@ public class TrokosServer extends OperationsTrokos {
 		File folderQRrequests = new File ("QRrequests");
 		File folderGroupPayments = new File("groupPayments");
 		File folderGroupHistory = new File ("groupHistory");
+		File folderHistory = new File("history");
 
 		File[] files = folderData.listFiles();
 		for (File f : files) {
@@ -528,6 +567,13 @@ public class TrokosServer extends OperationsTrokos {
 		
 		File[] filesGroupHistory = folderGroupHistory.listFiles();
 		for (File f : filesGroupHistory) {
+
+			if (f.isFile() && f.exists())
+				f.delete();
+		}
+		
+		File[] filesHistory = folderHistory.listFiles();
+		for (File f : filesHistory) {
 
 			if (f.isFile() && f.exists())
 				f.delete();

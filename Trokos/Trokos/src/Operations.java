@@ -28,4 +28,6 @@ public interface Operations {
 	String statuspayment(String user, String nomeGrupo) throws IOException;
 
 	int confirmQRcode(String user, String id) throws IOException;
+	
+	String history(String user) throws IOException;
 }
