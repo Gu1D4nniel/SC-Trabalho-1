@@ -1,0 +1,3 @@
+Valor:1.0
+Quem falta pagar:manolo,jony,dred,Valor:13.0
+Quem falta pagar:manolo,jony,dred,

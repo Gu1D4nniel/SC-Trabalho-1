@@ -8,9 +8,12 @@ public interface Operations {
 
 	float balance(String user) throws IOException;
 
+	//newgroup
 	int criaGrupo(String user, String nomeGrupo) throws IOException;
-
+	//addu
 	int adicionaAoGrupo(String owner, String user, String nomeGrupo) throws IOException;
+	
+	String groups (String user) throws IOException;
 
 	int requestpayment(String user, String destino, float valor) throws IOException;
 

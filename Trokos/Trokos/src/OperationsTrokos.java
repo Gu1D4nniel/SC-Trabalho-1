@@ -192,14 +192,12 @@ public class OperationsTrokos implements Operations {
 
 		Scanner sc = new Scanner(new File("db.txt"));
 
-		int check = 0;
-		while ((sc.hasNextLine())) {
-			String input = sc.nextLine();
-
-			if (input.contains(destino.trim())) {
-				check = 1;
-			}
-		} // Nao existe o destino
+		int check = 1;
+		/*
+		 * while ((sc.hasNextLine())) { String input = sc.nextLine();
+		 * 
+		 * if (input.contains(destino.trim())) { check = 1; } }
+		 */ // Nao existe o destino
 		if (check == 0) {
 			return check;
 		}
@@ -422,104 +420,161 @@ public class OperationsTrokos implements Operations {
 	 * @param id   id do pedido
 	 * @param user membro que vai enviar o dinheiro
 	 * @return 1 se o pagamento for feito com sucesso, 0 user nao tem saldo
-	 *         suficiente, -1 se nao existir este id
+	 *         suficiente, -1 se nao existir este id, -2 outro erro
 	 * 
 	 * @throws IOException
 	 */
 	public int payrequest(String id, String user) throws IOException {
-		File file = new File("requests/" + user + ".txt");
+		File file;
+		// se nao for pagamento a um user eh um pagamento de grupo
 
-		FileInputStream fis = new FileInputStream(file);
-		InputStream ips = new BufferedInputStream(fis);
+		if (!new File("requests/" + user + ".txt").exists()) {
+			// neste caso a variavel user eh o nome do grupo
+			file = new File("groupPayments/" + user + ".txt");
 
-		String data = "";
-		int j;
-		while ((j = ips.read()) != -1) {
-			data += (char) j;
-		}
+			// se nao for pagamento de grupo entao eh pagamento a um user
+		} else if (!new File("groupPayments/" + user + ".txt").exists()) {
 
-		String[] lines = data.split("\n");
-		String[] payment = new String[3];
-		ips.close();
+			file = new File("requests/" + user + ".txt");
+			FileInputStream fis = new FileInputStream(file);
+			InputStream ips = new BufferedInputStream(fis);
 
-		FileOutputStream fin = new FileOutputStream(file, false);
-		OutputStream ops = new BufferedOutputStream(fin);
-
-		int check = 0;
-
-		for (String l : lines) {
-			if (l.contains(id)) {
-
-				payment = l.split("/");
-				String destino = payment[1];
-				float valor = Float.parseFloat(payment[2]);
-
-				check = makepayment(user, destino, valor);
-
-				if (balance(user) - valor < 0) {
-					check = 0;
-				} else {
-					l = "";
-				}
-
-			} else {
-				check = -1;
+			String data = "";
+			int j;
+			while ((j = ips.read()) != -1) {
+				data += (char) j;
 			}
 
-			ops.write((l + "\n").getBytes());
+			String[] lines = data.split("\n");
+			String[] payment = new String[3];
+			ips.close();
 
+			FileOutputStream fin = new FileOutputStream(file, false);
+			OutputStream ops = new BufferedOutputStream(fin);
+
+			int check = 0;
+
+			for (String l : lines) {
+				payment = l.split("/");
+				if (l.contains(id) && payment[0].equals(id)) {
+
+					String destino = payment[1];
+					float valor = Float.parseFloat(payment[2]);
+
+					if (balance(user) - valor < 0) {
+						check = 0;
+					} else {
+						l = "";
+					}
+					if (makepayment(user, destino, valor) != 1) {
+						check = -2;
+					}
+				} else {
+					check = -1;
+				}
+
+				ops.write((l + "\n").getBytes());
+
+			}
+
+			// SE NAO TIVER SALDO APAGA A LINHA CORRIGIR
+			ops.flush();
+			ops.close();
+
+			return check;
 		}
+		return -2;
 
-		// SE NAO TIVER SALDO APAGA A LINHA CORRIGIR
-		ops.flush();
-		ops.close();
-
-		return check;
 	}
 
+	/**
+	 * 
+	 * @return 0 se o utilizador que fez pedido nao eh dono, -1 se o grupo nao
+	 *         existir, 1 se a divisao correu bem, -2 se ja houver uma divisao em
+	 *         curso
+	 */
 	public int dividepayment(String owner, String nomeGrupo, float valor) throws IOException {
+
+		if (!new File("groups/" + nomeGrupo + ".txt").exists()) {
+
+			// nao existe este grupo
+			return -1;
+		}
+
 		File fileGrupo = new File("groups/" + nomeGrupo + ".txt");
 
 		FileInputStream fis = new FileInputStream(fileGrupo);
 		InputStream ips = new BufferedInputStream(fis);
-
+		int check = 0;
 		String data = "";
 		int j;
 		while ((j = ips.read()) != -1) {
 			data += (char) j;
 		}
-		String[] lines = data.split(data);
+
+		ips.close();
+		String[] lines = data.split("\n");
 
 		// Colocar aqui os users que vao receber o pedido para pagars
 		List<String> listUsers = new ArrayList<>();
 
 		for (String l : lines) {
+			String[] lineOwner = l.split(":");
 
-			if (l.contains("Owner")) {
-				String[] lineOwner = l.split(":");
-				if (!lineOwner[1].equals(owner)) {
-					// O owner deste grupo nao coincide com o user que fez o pedido
-					return 0;
-				} else {
-					listUsers.add(lineOwner[1]);
+			if (l.contains("Owner") && lineOwner[1].equals(owner)) {
 
-				}
-			} else {
+				// Se o user que fez pedido adiciona a lista de membros que vao dividir
+				// pagamento
+				listUsers.add(lineOwner[1]);
+				check = 1;
+
+			} else if (l.contains("Owner") && !lineOwner[1].equals(owner)) {
+				// User que fez o pedido nao eh o dono
+
+				check = 0;
+			}
+
+			else {
+				// adicionar o resto dos membros a lista de quem vai dividr pagamento
 				String[] lineMembers = l.split(":");
 				String membersString = lineMembers[1];
 				String[] members = membersString.split(",");
-
+				System.out.println(membersString);
 				for (String m : members) {
+
 					listUsers.add(m);
 				}
 
 			}
 
-			for (String u : listUsers) {
-				System.out.println(u);
-			}
 		}
-		return 0;
+		float size = (float) listUsers.size();
+		float toPay = valor / size;
+
+		File fileGroupRequest = new File("groupPayments/" + nomeGrupo + ".txt");
+		if (fileGroupRequest.isFile() && fileGroupRequest.exists()) {
+			check = -2;
+		}
+
+		FileOutputStream fin = new FileOutputStream(fileGroupRequest, true);
+		OutputStream ops = new BufferedOutputStream(fin);
+		ops.write(("Valor:" + String.valueOf(valor) + "\n").getBytes());
+		ops.write("Quem falta pagar:".getBytes());
+
+		for (String u : listUsers) {
+
+			ops.write((u + ",").getBytes());
+
+			requestpayment(nomeGrupo, u, toPay);
+		}
+
+		ops.flush();
+		ops.close();
+		if (check == 0) {
+			return check;
+		}
+
+		return check;
 	}
 
 	/**
@@ -528,11 +583,47 @@ public class OperationsTrokos implements Operations {
 	 * 
 	 * @param user      utilizador que pediu para ver o pedido
 	 * @param nomeGrupo id do grupo
-	 * @return erro ou uma lista com os membros do grupo que ainda nao pagaram
+	 * @return erro ou uma String com os membros do grupo que ainda nao pagaram
 	 * @throws IOException
 	 */
+
+	// FAZER A VERIFICAÇAO DO DONO
 	public String statuspayment(String user, String nomeGrupo) throws IOException {
-		return null;
+		File file = new File("groupPayments/" + nomeGrupo + ".txt");
+		FileInputStream fis = new FileInputStream(file);
+		InputStream ips = new BufferedInputStream(fis);
+		int check = 0;
+		String data = "";
+		int j;
+		while ((j = ips.read()) != -1) {
+			data += (char) j;
+		}
+
+		ips.close();
+		String[] lines = data.split("\n");
+
+		String lineValor = lines[0];
+		String[] splitLineValor = lineValor.split(":");
+
+		if (Float.parseFloat(splitLineValor[1]) == 0) {
+			file.delete();
+		}
+		// string com os membros que nao pagaram ainda
+		String resposta = "";
+
+		// linha com os membros que nao pagaram
+		String linePorPagar = lines[1];
+		// separar esta linha no :
+		String[] splitLinePorPagar = linePorPagar.split(":");
+
+		String membros = splitLinePorPagar[1];
+		String[] splitMembros = membros.split(",");
+
+		for (String m : splitMembros) {
+			resposta += (m + " ");
+		}
+
+		return resposta;
 
 	}
 
@@ -583,10 +674,12 @@ public class OperationsTrokos implements Operations {
 		MatrixToImageWriter.writeToFile(matrix, path.substring(path.lastIndexOf('.') + 1), new File(path));
 	}
 
-	/** APAGAR O QRCODE E FAZER VERIFICACOES
+	/**
+	 * APAGAR O QRCODE E FAZER VERIFICACOES
 	 * 
 	 */
 	public int confirmQRcode(String user, String id) throws IOException {
+
 		File file = new File("qrRequests/data.txt");
 
 		FileInputStream fis = new FileInputStream(file);
@@ -597,7 +690,6 @@ public class OperationsTrokos implements Operations {
 		while ((j = ips.read()) != -1) {
 			data += (char) j;
 		}
-		
 
 		String destino = "";
 		float valor = 0;
@@ -618,7 +710,7 @@ public class OperationsTrokos implements Operations {
 				valor = Float.parseFloat(lineData[1]);
 				l = "".trim();
 			}
-			ops.write((l+"\n").getBytes());
+			ops.write((l + "\n").getBytes());
 		}
 		ops.flush();
 		ops.close();
@@ -629,5 +721,47 @@ public class OperationsTrokos implements Operations {
 
 		return 1;
 
+	}
+
+	@Override
+	public String groups(String user) throws IOException {
+		File file = new File("dataUsers/" + user + ".txt");
+		FileInputStream fis = new FileInputStream(file);
+		InputStream ips = new BufferedInputStream(fis);
+
+		String data = "";
+		int j;
+		while ((j = ips.read()) != -1) {
+			data += (char) j;
+		}
+		
+		ips.close();
+		String grupos = "";
+		String[] lines = data.split("\n");
+		// 2a linha eh a linha em q diz quais sao os grupos de que o user eh dono
+		String lineOwner = lines[1];
+		// faz split nos ":"
+		String[] splitOwnerLine = lineOwner.split(":");
+
+		// Owner of
+		String[] ownerOf = splitOwnerLine[1].split(",");
+		grupos +="Dono de: ";
+		for (String o : ownerOf) {
+			grupos += (o + ", ");
+		}
+		grupos+="\n Membro de: ";
+		// 3a linha eh a linha em q diz quais sao os grupos de que o user eh membro
+		String lineMembers = lines[2];
+		// faz split nos ":"
+		String[] splitMembersLine = lineMembers.split(":");
+
+		// Member of
+		String[] memberOf = splitMembersLine[1].split(",");
+
+		for (String m : memberOf) {
+			grupos += (m + ", ");
+		}
+
+		return grupos;
 	}
 }

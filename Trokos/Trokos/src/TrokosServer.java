@@ -29,7 +29,7 @@ public class TrokosServer extends OperationsTrokos {
 
 	private final String ops = "------------------------------------------------------------\nOperaçoes:\nbalance\nmakepayment <userID><amount>"
 			+ "\nrequestpayment <userID> <valor>\nviewrequests\npayrequest <reqID>\nobtainQRcode <amount>\nconfirmQRcode <QRcode>"
-			+ "\nnewgroup <groupID>\naddu <userID><groupID>groups"
+			+ "\nnewgroup <groupID>\naddu <userID><groupID>\ngroups"
 			+ "\ndividepayment <groupID><amount>\nstatuspayments <groupID>\nhistory< <groupID>"
 			+ "\n------------------------------------------------------------\n";
 
@@ -42,50 +42,11 @@ public class TrokosServer extends OperationsTrokos {
 		}
 		// clearDB
 		else if (args[0].equals("clearDB")) {
-			File fileToDelete = new File("./db.txt");
-			fileToDelete.delete();
 
-			File folderData = new File("./dataUsers");
-			File folderGrupos = new File("./groups");
-			File folderRequests = new File("./requests");
-			File folderQRcodes = new File("./QRcodes");
-			File folderQRrequests = new File ("./QRrequests");
-
-			File[] files = folderData.listFiles();
-			for (File f : files) {
-
-				if (f.isFile() && f.exists())
-					f.delete();
-			}
-			File[] filesGrupo = folderGrupos.listFiles();
-			for (File f : filesGrupo) {
-
-				if (f.isFile() && f.exists())
-					f.delete();
-			}
-
-			File[] filesRequests = folderRequests.listFiles();
-			for (File f : filesRequests) {
-
-				if (f.isFile() && f.exists())
-					f.delete();
-			}
-
-			File[] filesQRrequests = folderQRrequests.listFiles();
-			for (File f : filesQRrequests) {
-
-				if (f.isFile() && f.exists())
-					f.delete();
-			}
-			
-			File[] filesQRcodes = folderQRcodes.listFiles();
-			for (File f : filesQRcodes) {
-
-				if (f.isFile() && f.exists())
-					f.delete();
-			}
+			clearDB();
 
 			return;
+			
 		} else {
 			port = Integer.parseInt(args[0]);
 		}
@@ -96,7 +57,7 @@ public class TrokosServer extends OperationsTrokos {
 		server.startServer();
 	}
 
-	public void startServer() {
+		public void startServer() {
 		ServerSocket sSoc = null;
 
 		try {
@@ -150,9 +111,15 @@ public class TrokosServer extends OperationsTrokos {
 
 				File qrRequests = new File("qrRequests");
 				qrRequests.mkdir();
-				
+
 				File qrCodes = new File("QRcodes");
 				qrCodes.mkdir();
+
+				File groupPayments = new File("groupPayments");
+				groupPayments.mkdir();
+
+				File groupHistory = new File("groupHistory");
+				groupHistory.mkdir();
 
 				// Tem o true pq senao faz sempre overwrite aos dados do ficheiro
 				PrintWriter pw = new PrintWriter(new FileWriter(fileDb, true));
@@ -319,7 +286,51 @@ public class TrokosServer extends OperationsTrokos {
 								outStream.writeObject("Grupo criado com sucesso");
 								outStream.flush();
 
-							} else if (respostaOp.contains("addu") || respostaOp.charAt(0) == 'a') {
+							} else if (respostaOp.contains("dividepayment") || respostaOp.charAt(0) == 'd') {
+								String[] split = respostaOp.split(" ");
+								if (split.length != 3) {
+									outStream.writeObject("Dados nao estao completos");
+									outStream.flush();
+									outStream.close();
+									return;
+								}
+								String nomeGrupo = split[1];
+								float valor = Float.parseFloat(split[2]);
+								int check = dividepayment(user, nomeGrupo, valor);
+								if (check == 1) {
+									outStream.writeObject("Divisao foi feito com sucesso");
+									outStream.flush();
+									outStream.close();
+								} else if (check == 0) {
+									outStream.writeObject("O user que fez o pedido nao eh o dono do grupo");
+									outStream.flush();
+									outStream.close();
+								} else if (check == -1) {
+									outStream.writeObject("Este grupo nao existe");
+									outStream.flush();
+									outStream.close();
+								}else if( check == -2) {
+									outStream.writeObject("Ja existe um pagamento em curso");
+									outStream.flush();
+									outStream.close();
+								}
+							}else if (respostaOp.contains("statuspayments") || respostaOp.charAt(0) == 's') {
+								String[] split = respostaOp.split(" ");
+								if (split.length != 2) {
+									outStream.writeObject("Dados nao estao completos");
+									outStream.flush();
+									outStream.close();
+									return;
+								}
+								String nomeGrupo = split[1];
+								String membros = statuspayment(user, nomeGrupo);
+								outStream.writeObject("Membros que ainda nao pagaram: "+membros);
+								outStream.flush();
+								outStream.close();
+								
+							}
+
+							else if (respostaOp.contains("addu") || respostaOp.charAt(0) == 'a') {
 								String[] split = respostaOp.split(" ");
 								if (split.length != 3) {
 									outStream.writeObject("Dados nao estao completos");
@@ -349,7 +360,13 @@ public class TrokosServer extends OperationsTrokos {
 									outStream.flush();
 									outStream.close();
 								}
-							} else if (respostaOp.contains("obtainQRcode") || respostaOp.charAt(0) == 'o') {
+							}else if (respostaOp.contains("groups") || respostaOp.charAt(0) == 'g') {
+								String grupos = groups(user);
+								outStream.writeObject(grupos);
+								outStream.flush();
+								outStream.close();
+							}
+							else if (respostaOp.contains("obtainQRcode") || respostaOp.charAt(0) == 'o') {
 								String[] split = respostaOp.split(" ");
 
 								if (split.length != 2) {
@@ -366,9 +383,9 @@ public class TrokosServer extends OperationsTrokos {
 								outStream.flush();
 								outStream.close();
 
-							}else if (respostaOp.contains("confirmQRcode") || respostaOp.charAt(0) == 'c') {
-								String [] split = respostaOp.split(" ");
-								
+							} else if (respostaOp.contains("confirmQRcode") || respostaOp.charAt(0) == 'c') {
+								String[] split = respostaOp.split(" ");
+
 								if (split.length != 2) {
 									outStream.writeObject("Dados nao estao completos");
 									outStream.flush();
@@ -376,13 +393,13 @@ public class TrokosServer extends OperationsTrokos {
 									return;
 								}
 								String id = split[1];
-								if(confirmQRcode(user,id ) == 1) {
+								if (confirmQRcode(user, id) == 1) {
 									outStream.writeObject("Pagamento feito com sucesso");
 									outStream.flush();
 									outStream.close();
 								}
 							}
-							
+
 							else {
 								outStream.flush();
 								outStream.close();
@@ -451,5 +468,70 @@ public class TrokosServer extends OperationsTrokos {
 			userWriter.close();
 
 		}
+	}
+	
+	/**
+	 * Este metodo apaga todos os ficheiros que existem na db
+	 */
+	private static void clearDB() {
+		File fileToDelete = new File("db.txt");
+		fileToDelete.delete();
+
+		File folderData = new File("dataUsers");
+		File folderGrupos = new File("groups");
+		File folderRequests = new File("requests");
+		File folderQRcodes = new File("QRcodes");
+		File folderQRrequests = new File ("QRrequests");
+		File folderGroupPayments = new File("groupPayments");
+		File folderGroupHistory = new File ("groupHistory");
+
+		File[] files = folderData.listFiles();
+		for (File f : files) {
+
+			if (f.isFile() && f.exists())
+				f.delete();
+		}
+		File[] filesGrupo = folderGrupos.listFiles();
+		for (File f : filesGrupo) {
+
+			if (f.isFile() && f.exists())
+				f.delete();
+		}
+
+		File[] filesRequests = folderRequests.listFiles();
+		for (File f : filesRequests) {
+
+			if (f.isFile() && f.exists())
+				f.delete();
+		}
+
+		File[] filesQRrequests = folderQRrequests.listFiles();
+		for (File f : filesQRrequests) {
+
+			if (f.isFile() && f.exists())
+				f.delete();
+		}
+		
+		File[] filesQRcodes = folderQRcodes.listFiles();
+		for (File f : filesQRcodes) {
+
+			if (f.isFile() && f.exists())
+				f.delete();
+		}
+		
+		File[] filesGroupPayments = folderGroupPayments.listFiles();
+		for (File f : filesGroupPayments) {
+
+			if (f.isFile() && f.exists())
+				f.delete();
+		}
+		
+		File[] filesGroupHistory = folderGroupHistory.listFiles();
+		for (File f : filesGroupHistory) {
+
+			if (f.isFile() && f.exists())
+				f.delete();
+		}
+
 	}
 }

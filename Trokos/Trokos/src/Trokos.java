@@ -4,8 +4,6 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.Scanner;
 
-
-
 /*Como usar
  * java Trokos <serverAddress> <userID> [password]
  * por omissao o porto eh 45678 
@@ -85,7 +83,7 @@ public class Trokos {
 
 				out.writeObject(respostaOp);
 				out.flush();
-			
+
 				String respostaPedido = (String) in.readObject();
 
 				if (respostaOp.contains("balance") || respostaOp.charAt(0) == 'b') {
@@ -105,17 +103,21 @@ public class Trokos {
 
 				} else if (respostaOp.contains("obtainQRcode") || respostaOp.charAt(0) == 'o') {
 					System.out.println(respostaPedido);
-							
-				}else if (respostaOp.contains("confirmQRcode") || respostaOp.charAt(0) == 'c') {
+
+				} else if (respostaOp.contains("confirmQRcode") || respostaOp.charAt(0) == 'c') {
 					System.out.println(respostaPedido);
-							
-				}else if (respostaOp.contains("newgroup") || respostaOp.charAt(0) == 'n') {
+
+				} else if (respostaOp.contains("newgroup") || respostaOp.charAt(0) == 'n') {
 					System.out.println(respostaPedido);
 
 				} else if (respostaOp.contains("addu") || respostaOp.charAt(0) == 'a') {
 					System.out.println(respostaPedido);
 
+				} else if (respostaOp.contains("groups") || respostaOp.charAt(0) == 'g') {
+					System.out.println(respostaPedido);
 				} else if (respostaOp.contains("dividepayment") || respostaOp.charAt(0) == 'd') {
+					System.out.println(respostaPedido);
+				} else if (respostaOp.contains("statuspayments") || respostaOp.charAt(0) == 's') {
 					System.out.println(respostaPedido);
 				}
 			}
