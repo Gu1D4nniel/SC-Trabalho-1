@@ -1,22 +1,14 @@
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+
 import java.util.Scanner;
 
 /*Como usar 
@@ -27,7 +19,7 @@ import java.util.Scanner;
  * java TrokosServer clearDB 
  * limpa a db (ajuda a testar)
  */
-public class TrokosServer {
+public class TrokosServer extends OperationsTrokos {
 
 	private static int port;
 
@@ -52,12 +44,20 @@ public class TrokosServer {
 			fileToDelete.delete();
 
 			File file = new File("dataUsers");
+			File fileGrupos = new File("groups");
 			File[] files = file.listFiles();
 			for (File f : files) {
 
 				if (f.isFile() && f.exists())
 					f.delete();
 			}
+			File[] filesGrupo = fileGrupos.listFiles();
+			for (File f : filesGrupo) {
+
+				if (f.isFile() && f.exists())
+					f.delete();
+			}
+
 			return;
 		} else {
 			port = Integer.parseInt(args[0]);
@@ -106,19 +106,20 @@ public class TrokosServer {
 				ObjectOutputStream outStream = new ObjectOutputStream(socket.getOutputStream());
 				ObjectInputStream inStream = new ObjectInputStream(socket.getInputStream());
 
+				// cria db com users:passwords
 				File fileDb = new File("db.txt");
+
+				// cria folder com dados de cada user
 				File dataFile = new File("dataUsers");
 				dataFile.mkdir();
 
-				/*
-				 * FileOutputStream fin = new FileOutputStream(fileDb, true); OutputStream ops =
-				 * new BufferedOutputStream(fin);
-				 * 
-				 * 
-				 * 
-				 * FileInputStream fis = new FileInputStream(fileDb); InputStream ips = new
-				 * BufferedInputStream(fis);
-				 */
+				// cria folder com dados de cada grupo
+				File groupFile = new File("groups");
+				groupFile.mkdir();
+
+				// cria folder com os dados dos requests
+				File requestsFile = new File("requests");
+				requestsFile.mkdir();
 
 				// Tem o true pq senao faz sempre overwrite aos dados do ficheiro
 				PrintWriter pw = new PrintWriter(new FileWriter(fileDb, true));
@@ -172,14 +173,15 @@ public class TrokosServer {
 
 							if (respostaOp.contains(("balance")) || respostaOp.charAt(0) == 'b') {
 								String balance = String.valueOf(balance(user));
-								System.out.println("BALANCE:"+balance);
+								System.out.println("BALANCE:" + balance);
 								outStream.writeObject(balance);
 								outStream.flush();
 								// System.out.println(balance);
 							} else if (respostaOp.contains(("makepayment")) || respostaOp.charAt(0) == 'm') {
 								String[] split = respostaOp.split(" ");
-								if (split.length < 3) {
+								if (split.length != 3) {
 									outStream.writeObject("Dados nao estao completos");
+									outStream.flush();
 									return;
 								}
 								String destino = split[1];
@@ -199,7 +201,65 @@ public class TrokosServer {
 									outStream.flush();
 								}
 
+							} else if (respostaOp.contains("requestpayment") || respostaOp.charAt(0) == 'r') {
+								String[] split = respostaOp.split(" ");
+								if (split.length != 3) {
+									outStream.writeObject("Dados nao estao completos");
+									outStream.flush();
+									return;
+								}
+
+							} else if (respostaOp.contains("newgroup") || respostaOp.charAt(0) == 'n') {
+								String[] split = respostaOp.split(" ");
+								if (split.length != 2) {
+									outStream.writeObject("Dados nao estao completos");
+									outStream.flush();
+									return;
+								}
+								String nomeGrupo = split[1];
+								int check = criaGrupo(user, nomeGrupo);
+								if (check == 0) {
+									outStream.writeObject("Este grupo ja existe");
+									outStream.flush();
+
+								}
+								outStream.writeObject("Grupo criado com sucesso");
+								outStream.flush();
+
+							} else if (respostaOp.contains("addu") || respostaOp.charAt(0) == 'a') {
+								String[] split = respostaOp.split(" ");
+								if (split.length != 3) {
+									outStream.writeObject("Dados nao estao completos");
+									outStream.flush();
+									return;
+								}
+								String nomeMembro = split[1];
+								String nomeGrupo = split[2];
+								int check = adicionaAoGrupo(user, nomeMembro, nomeGrupo);
+								if (check == 0) {
+
+									outStream.writeObject("Nao existe este grupo");
+									outStream.flush();
+
+								} else if (check == -1) {
+									outStream.writeObject("Apenas o owner pode adicionar membros");
+									outStream.flush();
+								} else if (check == -2) {
+									outStream.writeObject("Este user ja faz parte do grupo");
+									outStream.flush();
+								}
+								outStream.writeObject("Novo membro adicionado com sucesso");
+							} else if (respostaOp.contains("obtainQRcode") || respostaOp.charAt(0) == 'o') {
+								String[] split = respostaOp.split(" ");
+								if (split.length != 2) {
+									outStream.writeObject("Dados nao estao completos");
+									outStream.flush();
+									return;
+								}
+								float valor = Float.parseFloat(split[1]);
+
 							} else {
+
 								return;
 							}
 
@@ -253,160 +313,13 @@ public class TrokosServer {
 			PrintWriter userWriter = new PrintWriter(new FileWriter(fileUser, true));
 
 			userWriter.println("Balance:" + startBalance);
-			userWriter.println("Requests from:");
+			userWriter.println("Owner of (groups):");
+			userWriter.println("Member of (groups):");
 
 			outStream.writeObject("Utilizador " + user + " foi criado com sucesso");
 			outStream.flush();
 			userWriter.close();
 
-		}
-
-		/**
-		 * metodo que devolve o balanço de um dado user
-		 * 
-		 * @param user utilizador que fez o pedido balance
-		 * @return o balanço da conta de um dado user
-		 * @throws IOException 
-		 */
-		private float balance(String user) throws IOException {
-			File file = new File("dataUsers/" + user + ".txt");
-			float balance =0;
-			
-			FileInputStream fisUser = new FileInputStream(file);
-			InputStream ipsUser = new BufferedInputStream(fisUser);	
-			
-			int i =0;
-			String dataUser ="";
-			while ((i = ipsUser.read())!= -1) {
-				dataUser += (char) i;
-			}
-			
-			
-			
-			String [] lines = dataUser.split("\n");
-			for (String l : lines) {
-				if (l.contains("Balance")) {
-					String [] data = l.split(":");
-					balance = Float.parseFloat(data[1]);
-					
-				}
-			}
-			ipsUser.close();
-			return balance;
-
-		}
-
-		/**
-		 * metodo que envia dinheiro de um user para outro
-		 * 
-		 * @param user    user que esta a enviar dinheiro
-		 * @param destino user que vai receber o dinheiro
-		 * @param valor   quantidade de dinheiro
-		 * @throws IOException
-		 * @throws FileNotFoundException
-		 */
-		private int makepayment(String user, String destino, float valor) throws IOException {
-			Scanner sc = new Scanner(new File("db.txt"));
-
-			// procura o destino na db
-			int check = 0;
-			while ((sc.hasNextLine())) {
-				String input = sc.nextLine();
-
-				if (input.contains(destino.trim())) {
-					check = 1;
-				}
-			}//Nao existe o destino
-			if (check == 0) {
-				return check;
-			}//User e destino sao iguais
-			if (user.equals(destino)) {
-				check = -2;
-				return check;
-			
-			}
-
-			//File do user que envia dinheiro
-			File file = new File("dataUsers/" + user + ".txt");
-			
-			FileInputStream fisUser = new FileInputStream(file);
-			InputStream ipsUser = new BufferedInputStream(fisUser);
-
-			//Le o ficheiro e transforma em string
-			int i;
-			String dataUser = "";
-			while ((i = ipsUser.read()) != -1) {
-				dataUser += (char) i;
-			}
-			ipsUser.close();
-			//Divide as linhas
-			String[] lines = dataUser.split("\n");
-			
-			//procura a linha que contem o balance
-			for (String l : lines) {
-				if (l.contains("Balance")) {
-					String[] data = l.split(":");
-					//Se o valor a enviar foir maior que o saldo da erro
-					if (Float.parseFloat(data[1]) - valor < 0) {
-						return -1;
-					} else {
-						//Abre o outStream para atualizar os dados dos ficheiros
-						FileOutputStream fin = new FileOutputStream(file, false);
-						OutputStream ops = new BufferedOutputStream(fin);
-						float valorFinal = Float.parseFloat(data[1]) - valor;
-						data[1] = String.valueOf(valorFinal);
-						byte[] testeB = (data[0] + ":" + data[1]).getBytes();
-
-						ops.write(testeB);
-						ops.write("\n".getBytes());
-						ops.write(lines[1].getBytes());
-						ops.flush();
-						ops.close();
-
-					}
-				}
-			}
-
-			//Ficheiro destino
-			File fileDestino = new File("dataUsers/" + destino + ".txt");
-
-			FileInputStream fisDestino = new FileInputStream(fileDestino);
-			InputStream ipsDestino = new BufferedInputStream(fisDestino);
-
-			//Le o ficheiro destino e transforma em string
-			int j;
-			String dataDestino = "";
-			while ((j = ipsDestino.read()) != -1) {
-				dataDestino += (char) i;
-			}
-			ipsDestino.close();
-
-			//Divide as linhas
-			String[] linesDestino = dataUser.split("\n");
-
-			//Procura a line com o balance
-			for (String l : linesDestino) {
-				if (l.contains("Balance")) {
-					String[] data = l.split(":");
-
-					//Abre um output stream para atualizar o ficheiro
-					FileOutputStream fin = new FileOutputStream(fileDestino, false);
-					OutputStream ops = new BufferedOutputStream(fin);
-					float valorFinal = Float.parseFloat(data[1]) + valor;
-					data[1] = String.valueOf(valorFinal);
-					byte[] testeB = (data[0] + ":" + data[1]).getBytes();
-
-					ops.write(testeB);
-					ops.write("\n".getBytes());
-					ops.write(lines[1].getBytes());
-					ops.flush();
-					ops.close();
-
-				}
-			}
-
-			sc.close();
-			return 1;
 		}
 	}
 }

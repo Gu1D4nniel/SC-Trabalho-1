@@ -1,0 +1,3 @@
+Balance:100.0
+Owner of (groups):doidos,parvos,
+Member of (groups):maukos,

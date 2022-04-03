@@ -79,6 +79,7 @@ public class Trokos {
 
 				System.out.println("Escreva o que deseja fazer: ");
 				String respostaOp = sc.nextLine();
+				System.out.println();
 
 				out.writeObject(respostaOp);
 				out.flush();
@@ -86,18 +87,41 @@ public class Trokos {
 				String respostaPedido = (String) in.readObject();
 
 				if (respostaOp.contains("balance") || respostaOp.charAt(0) == 'b') {
-
 					System.out.println("O seu balance e: " + respostaPedido);
+
 				} else if (respostaOp.contains("makepayment") || respostaOp.charAt(0) == 'm') {
-
 					System.out.println(respostaPedido);
-				}
-				else if (respostaOp.contains("newgroup") || respostaOp.charAt(0) == 'n') {
 
+				} else if (respostaOp.contains("requestpayment") || respostaOp.charAt(0) == 'r') {
 					System.out.println(respostaPedido);
-				}
-				else if (respostaOp.contains("addu") || respostaOp.charAt(0) == 'a') {
 
+				} else if (respostaOp.contains("viewrequests") || respostaOp.charAt(0) == 'v') {
+					System.out.println(respostaPedido);
+
+				} else if (respostaOp.contains("payrequest") || respostaOp.charAt(0) == 'p') {
+					System.out.println(respostaPedido);
+
+				} else if (respostaOp.contains("obtainQRcode") || respostaOp.charAt(0) == 'o') {
+					System.out.println(respostaPedido);
+
+				} else if (respostaOp.contains("confirmQRcode") || respostaOp.charAt(0) == 'c') {
+					System.out.println(respostaPedido);
+
+				} else if (respostaOp.contains("newgroup") || respostaOp.charAt(0) == 'n') {
+					System.out.println(respostaPedido);
+
+				} else if (respostaOp.contains("addu") || respostaOp.charAt(0) == 'a') {
+					System.out.println(respostaPedido);
+
+				} else if (respostaOp.contains("groups") || respostaOp.charAt(0) == 'g') {
+					System.out.println(respostaPedido);
+				} else if (respostaOp.contains("dividepayment") || respostaOp.charAt(0) == 'd') {
+					System.out.println(respostaPedido);
+				} else if (respostaOp.contains("statuspayments") || respostaOp.charAt(0) == 's') {
+					System.out.println(respostaPedido);
+				}else if (respostaOp.contains("history") || respostaOp.charAt(0) == 'h') {
+					System.out.println(respostaPedido);
+				}else {
 					System.out.println(respostaPedido);
 				}
 			}
