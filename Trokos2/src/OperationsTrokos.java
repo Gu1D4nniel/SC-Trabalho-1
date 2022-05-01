@@ -9,12 +9,7 @@ import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.security.InvalidKeyException;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.Signature;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -106,7 +101,7 @@ public class OperationsTrokos implements Operations {
 			fos = new FileOutputStream(folder + "/" + user + ".cif");
 
 			cos = new CipherOutputStream(fos, c);
-			byte[] b = new byte[16];
+			byte[] b = new byte[32];
 			int i = fis.read(b);
 			while (i != -1) {
 				cos.write(b, 0, i);
@@ -199,11 +194,9 @@ public class OperationsTrokos implements Operations {
 	 *         0 se o destino nao existir na db, 1 se o pagamento foi feito com
 	 *         sucesso
 	 * @throws IOException
-	 * @throws NoSuchAlgorithmException 
-	 * @throws InvalidKeyException 
 	 * @throws FileNotFoundException
 	 */
-	public int makepayment(String user, String destino, float valor) throws IOException, NoSuchAlgorithmException, InvalidKeyException {
+	public int makepayment(String user, String destino, float valor) throws IOException {
 		/*
 		 * Scanner sc = new Scanner(new File("db.txt"));
 		 * 
@@ -242,7 +235,7 @@ public class OperationsTrokos implements Operations {
 		for (String l : lines) {
 			if (l.contains("Balance")) {
 				String[] dataSender = l.split(":");
-				// Se o valor a enviar for maior que o saldo da erro
+				// Se o valor a enviar foir maior que o saldo da erro
 				if (Float.parseFloat(dataSender[1]) - valor < 0) {
 					cifraData(folder, user);
 					return -1;
@@ -261,16 +254,6 @@ public class OperationsTrokos implements Operations {
 						ops.write(lines[x].getBytes());
 						ops.write("\n".getBytes());
 					}
-					
-					//Assinatura da a operacao 
-					//geracao das chaves
-					KeyPairGenerator gpc = KeyPairGenerator.getInstance("RSA");
-					gpc.initialize(1024);
-					KeyPair pc = gpc.generateKeyPair();
-					PrivateKey cp = pc.getPrivate();
-					
-					Signature s = Signature.getInstance("MD5withRSA");
-					s.initSign(cp);
 
 					ops.flush();
 					ops.close();
@@ -280,13 +263,12 @@ public class OperationsTrokos implements Operations {
 		}
 		// cifrar do user que enviou dinheiro depois da operacao
 
-		
-
 		// File folder2 = new File("dataUsers/");
 		File cif2 = new File(folder + "/" + destino + ".cif");
 		if (cif2.exists()) {
 			decifraData(folder, destino);
 		}
+		System.out.println(cif2.exists());
 		// Ficheiro destino
 		File fileDestino = new File(folder + "/" + destino + ".txt");
 
@@ -312,9 +294,9 @@ public class OperationsTrokos implements Operations {
 				// Abre um output stream para atualizar o ficheiro
 				FileOutputStream fin = new FileOutputStream(fileDestino, false);
 				OutputStream ops = new BufferedOutputStream(fin);
-				
+
 				float valorFinal = Float.parseFloat(dataRec[1]) + valor;
-			
+
 				dataRec[1] = String.valueOf(valorFinal);
 				byte[] testeB = (dataRec[0] + ":" + dataRec[1]).getBytes();
 
@@ -324,16 +306,11 @@ public class OperationsTrokos implements Operations {
 					ops.write(lines[x].getBytes());
 					ops.write("\n".getBytes());
 				}
-				
-				//verificacao da assinatura
-				//TODO
 				ops.flush();
-				ops.close();	
-							
+				ops.close();
 				cifraData(folder, destino);
 			}
 		}
-		
 
 		// sc.close();
 		return 1;
@@ -387,7 +364,8 @@ public class OperationsTrokos implements Operations {
 	}
 
 	/**
-	 * Metodo que devolve os pedidos que tem 
+	 * Metodo que devolve os pedidos que tem
+	 * 
 	 * @param user utilizador que quer ver os pedidos
 	 * @throws IOException
 	 */
@@ -549,10 +527,9 @@ public class OperationsTrokos implements Operations {
 			}
 
 		}
-		
 
 		ips.close();
-		
+
 		cifraData(folder, nomeGrupo);
 
 		return 1;
@@ -572,7 +549,7 @@ public class OperationsTrokos implements Operations {
 
 		File folder = new File("dataUsers/");
 		File cif = new File(folder + "/" + user + ".cif");
-		
+
 		if (cif.exists())
 			decifraData(folder, user);
 
@@ -597,11 +574,11 @@ public class OperationsTrokos implements Operations {
 			String newLine = lines[1] + nomeGrupo + ",";
 
 			ops.write((lines[0] + "\n").getBytes());
-			
+
 			ops.write((newLine + "\n").getBytes());
-			
+
 			ops.write((lines[2] + "\n").getBytes());
-			
+
 			ops.flush();
 			ops.close();
 			cifraData(folder, user);
@@ -615,24 +592,22 @@ public class OperationsTrokos implements Operations {
 			ops.close();
 			cifraData(folder, user);
 
-			
 		}
-		
+
 	}
 
 	/**
 	 * Metodo que faz o pagamento de um pedido
 	 * 
 	 * @param id   id do pedido
-	 * @param user membro que vai enviar o dinheiro 
+	 * @param user membro que vai enviar o dinheiro
 	 * @return 1 se o pagamento for feito com sucesso, 0 user nao tem saldo
 	 *         suficiente, -1 se nao existir este id, -2 outro erro
 	 * 
 	 * @throws IOException
 	 * @throws NoSuchAlgorithmException
-	 * @throws InvalidKeyException 
 	 */
-	public int payrequest(String id, String user) throws IOException, NoSuchAlgorithmException, InvalidKeyException {
+	public int payrequest(String id, String user) throws IOException, NoSuchAlgorithmException {
 
 		File folder = new File("requests/");
 		File cif = new File("requests/" + user + ".cif");
@@ -677,9 +652,12 @@ public class OperationsTrokos implements Operations {
 		// SE DESTINO NAO FOR NOME DE UM GRUPO FAZ ISTO
 		if (!new File("groupPayments/" + destino + ".cif").exists()) {
 
+			
+			
 			FileOutputStream fin = new FileOutputStream(file, false);
 			OutputStream ops = new BufferedOutputStream(fin);
 
+			
 			int check = 1;
 
 			// Se o ficheio nao possuir o id retorna -2 (nao existe este id)
@@ -692,8 +670,9 @@ public class OperationsTrokos implements Operations {
 			for (String l : lines) {
 				payment = l.split("/");
 				if (l.contains(id) && payment[0].equals(id)) {
-
+					
 					String receiver = payment[1];
+					System.out.println(receiver);
 					float amount = Float.parseFloat(payment[2]);
 
 					// Se o valor do pedido for maior que o saldo retorna 0(nao tem dinheiro
@@ -773,6 +752,8 @@ public class OperationsTrokos implements Operations {
 				ops2.write((m + ",").getBytes());
 			}
 			ops2.close();
+			
+			cifraData(folder, destino);
 
 			// Subtrai o balance com o valor a pagar ao grupo
 			atualizarUserData(user, valor);
@@ -780,8 +761,8 @@ public class OperationsTrokos implements Operations {
 			atualizarUserRequest(user, id);
 
 			addToGroupHistory(destino, valor);
-			System.out.println(destino);
-			cifraData(folder, destino);
+
+			
 			return 1;
 		}
 
@@ -819,14 +800,14 @@ public class OperationsTrokos implements Operations {
 
 		if (valor == 0) {
 			file.delete();
-
+			
 			File fileGroupHistory = new File("groupHistory/" + destino + ".txt");
 			FileOutputStream fin = new FileOutputStream(fileGroupHistory, true);
 			OutputStream ops = new BufferedOutputStream(fin);
 			ops.write(("Pagamento feito no valor de:" + valorTotal + "\n").getBytes());
 			ops.flush();
 			ops.close();
-			
+			return;
 		}
 		cifraData(folder, destino);
 
@@ -970,7 +951,7 @@ public class OperationsTrokos implements Operations {
 				// Se o user que fez pedido adiciona a lista de membros que vao dividir
 				// pagamento
 				listUsers.add(lineOwner[1]);
-				
+
 				check = 1;
 
 			} else if (l.contains("Owner") && !lineOwner[1].equals(owner)) {
@@ -982,10 +963,10 @@ public class OperationsTrokos implements Operations {
 			else {
 				// adicionar o resto dos membros a lista de quem vai dividr pagamento
 				String[] lineMembers = l.split(":");
-				
+
 				String membersString = lineMembers[1];
 				String[] members = membersString.split(",");
-			
+
 				for (String m : members) {
 
 					listUsers.add(m);
@@ -998,6 +979,8 @@ public class OperationsTrokos implements Operations {
 		float toPay = valor / size;
 
 		File fileGroupRequest = new File("groupPayments/" + nomeGrupo + ".txt");
+		
+		File folderPayment = new File("groupPayments");
 		if (fileGroupRequest.isFile() && fileGroupRequest.exists()) {
 			check = -2;
 		}
@@ -1020,6 +1003,8 @@ public class OperationsTrokos implements Operations {
 			cifraData(folder, nomeGrupo);
 			return check;
 		}
+		
+		cifraData(folderPayment, nomeGrupo);
 		cifraData(folder, nomeGrupo);
 		return check;
 	}
@@ -1074,7 +1059,7 @@ public class OperationsTrokos implements Operations {
 		for (String m : splitMembros) {
 			resposta += (m + " ");
 		}
-
+		if(file.exists())
 		cifraData(folder, nomeGrupo);
 		return resposta;
 
@@ -1144,11 +1129,9 @@ public class OperationsTrokos implements Operations {
 	 * 
 	 * @param user que vai enviar dinheiro
 	 * @param id   do qrcode
-	 * @throws NoSuchAlgorithmException 
-	 * @throws InvalidKeyException 
 	 * @throw IOException
 	 */
-	public int confirmQRcode(String user, String id) throws IOException, NoSuchAlgorithmException, InvalidKeyException {
+	public int confirmQRcode(String user, String id) throws IOException {
 
 		File folder = new File("qrRequests/");
 		File cif = new File(folder + "/data.cif");
@@ -1178,26 +1161,23 @@ public class OperationsTrokos implements Operations {
 		for (String l : lines) {
 			String[] lineData = l.split("/");
 
-			for(String b : lineData) {
-				System.out.print(b);
-			}
 			if (lineData[2].equals(id.trim())) {
-				
+
 				destino = lineData[0];
-				
+
 				valor = Float.parseFloat(lineData[1]);
 				l = "".trim();
 				ops.write((l + "\n").getBytes());
-			}else {
-				String x ="";
-				for(int i=0 ; i < lineData.length; i++) {
-					
-					x += lineData[i]+"/";
-					
+			} else {
+				String x = "";
+				for (int i = 0; i < lineData.length; i++) {
+
+					x += lineData[i] + "/";
+
 				}
 				ops.write(x.getBytes());
 			}
-			
+
 		}
 		ops.flush();
 		ops.close();
@@ -1206,8 +1186,8 @@ public class OperationsTrokos implements Operations {
 			cifraData(folder, "data");
 			return 0;
 		}
-		
-		File qr = new File("QRcodes/"+id+".png");
+
+		File qr = new File("QRcodes/" + id + ".png");
 		qr.delete();
 		cifraData(folder, "data");
 		return 1;
@@ -1229,7 +1209,7 @@ public class OperationsTrokos implements Operations {
 		if (cif.exists())
 			decifraData(folder, user);
 
-		File file = new File(folder+"/" + user + ".txt");
+		File file = new File(folder + "/" + user + ".txt");
 		FileInputStream fis = new FileInputStream(file);
 		InputStream ips = new BufferedInputStream(fis);
 
@@ -1238,27 +1218,28 @@ public class OperationsTrokos implements Operations {
 		while ((j = ips.read()) != -1) {
 			data += (char) j;
 		}
-	
+
 		ips.close();
 		String grupos = "";
 		String[] lines = data.split("\n");
 		// 2a linha eh a linha em q diz quais sao os grupos de que o user eh dono
 		String lineOwner = lines[1];
-		
+
 		// faz split nos ":"
 		String[] splitOwnerLine = lineOwner.split(":");
 
 		// Owner of
 		String[] ownerOf = splitOwnerLine[1].split(",");
-		sb.append("Dono de:");
-		//System.out.println(grupos);
+		sb.append("Dono de:\n");
+
 		for (String o : ownerOf) {
-			System.out.println(o);
-			sb.append(o+", ");
+
+			sb.append(o);
+			sb.append(" ");
 		}
+
 		sb.append("\n");
-		
-	
+
 		// 3a linha eh a linha em q diz quais sao os grupos de que o user eh membro
 		String lineMembers = lines[2];
 		// faz split nos ":"
@@ -1266,13 +1247,12 @@ public class OperationsTrokos implements Operations {
 
 		// Member of
 		String[] memberOf = splitMembersLine[1].split(",");
-		sb.append("Membro de :");
+		sb.append("Membro de:\n");
 		for (String m : memberOf) {
-			sb.append(m+", ");
+			sb.append(m);
+			sb.append(" ");
 		}
-		//System.out.println(sb.toString());
-		
-		
+
 		cifraData(folder, user);
 		return sb.toString();
 	}

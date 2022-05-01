@@ -584,7 +584,6 @@ public class TrokosServer extends OperationsTrokos {
 						}
 					} else if (respostaOp.contains("groups") || respostaOp.charAt(0) == 'g') {
 						String grupos = groups(user);
-						System.out.println(grupos);
 						outStream.writeObject(grupos);
 						outStream.flush();
 						outStream.close();
@@ -662,9 +661,6 @@ public class TrokosServer extends OperationsTrokos {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} catch (WriterException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (InvalidKeyException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
