@@ -1,12 +1,13 @@
 import java.io.File;
 import java.io.IOException;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
 import com.google.zxing.WriterException;
 
 public interface Operations {
 
-	int makepayment(String user, String destino, float valor) throws IOException;
+	int makepayment(String user, String destino, float valor) throws IOException, NoSuchAlgorithmException, InvalidKeyException;
 
 	float balance(String user) throws IOException, NoSuchAlgorithmException;
 
@@ -21,7 +22,7 @@ public interface Operations {
 
 	String viewrequests(String user) throws IOException;
 
-	int payrequest(String id, String user) throws IOException, NoSuchAlgorithmException;
+	int payrequest(String id, String user) throws IOException, NoSuchAlgorithmException, InvalidKeyException;
 
 	String obtainQRcode(String user, float valor) throws WriterException, IOException;
 
@@ -29,7 +30,7 @@ public interface Operations {
 
 	String statuspayment(String user, String nomeGrupo) throws IOException;
 
-	int confirmQRcode(String user, String id) throws IOException;
+	int confirmQRcode(String user, String id) throws IOException, NoSuchAlgorithmException, InvalidKeyException;
 	
 	 String history(String user) throws IOException;
 	 

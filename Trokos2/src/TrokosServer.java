@@ -664,6 +664,9 @@ public class TrokosServer extends OperationsTrokos {
 				} catch (WriterException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
+				} catch (InvalidKeyException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
 
 				outStream.close();

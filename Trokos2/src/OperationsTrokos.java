@@ -9,7 +9,12 @@ import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.security.InvalidKeyException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Signature;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -194,9 +199,11 @@ public class OperationsTrokos implements Operations {
 	 *         0 se o destino nao existir na db, 1 se o pagamento foi feito com
 	 *         sucesso
 	 * @throws IOException
+	 * @throws NoSuchAlgorithmException 
+	 * @throws InvalidKeyException 
 	 * @throws FileNotFoundException
 	 */
-	public int makepayment(String user, String destino, float valor) throws IOException {
+	public int makepayment(String user, String destino, float valor) throws IOException, NoSuchAlgorithmException, InvalidKeyException {
 		/*
 		 * Scanner sc = new Scanner(new File("db.txt"));
 		 * 
@@ -235,7 +242,7 @@ public class OperationsTrokos implements Operations {
 		for (String l : lines) {
 			if (l.contains("Balance")) {
 				String[] dataSender = l.split(":");
-				// Se o valor a enviar foir maior que o saldo da erro
+				// Se o valor a enviar for maior que o saldo da erro
 				if (Float.parseFloat(dataSender[1]) - valor < 0) {
 					cifraData(folder, user);
 					return -1;
@@ -254,6 +261,16 @@ public class OperationsTrokos implements Operations {
 						ops.write(lines[x].getBytes());
 						ops.write("\n".getBytes());
 					}
+					
+					//Assinatura da a operacao 
+					//geracao das chaves
+					KeyPairGenerator gpc = KeyPairGenerator.getInstance("RSA");
+					gpc.initialize(1024);
+					KeyPair pc = gpc.generateKeyPair();
+					PrivateKey cp = pc.getPrivate();
+					
+					Signature s = Signature.getInstance("MD5withRSA");
+					s.initSign(cp);
 
 					ops.flush();
 					ops.close();
@@ -307,8 +324,12 @@ public class OperationsTrokos implements Operations {
 					ops.write(lines[x].getBytes());
 					ops.write("\n".getBytes());
 				}
+				
+				//verificacao da assinatura
+				//TODO
 				ops.flush();
-				ops.close();
+				ops.close();	
+							
 				cifraData(folder, destino);
 			}
 		}
@@ -609,8 +630,9 @@ public class OperationsTrokos implements Operations {
 	 * 
 	 * @throws IOException
 	 * @throws NoSuchAlgorithmException
+	 * @throws InvalidKeyException 
 	 */
-	public int payrequest(String id, String user) throws IOException, NoSuchAlgorithmException {
+	public int payrequest(String id, String user) throws IOException, NoSuchAlgorithmException, InvalidKeyException {
 
 		File folder = new File("requests/");
 		File cif = new File("requests/" + user + ".cif");
@@ -1122,9 +1144,11 @@ public class OperationsTrokos implements Operations {
 	 * 
 	 * @param user que vai enviar dinheiro
 	 * @param id   do qrcode
+	 * @throws NoSuchAlgorithmException 
+	 * @throws InvalidKeyException 
 	 * @throw IOException
 	 */
-	public int confirmQRcode(String user, String id) throws IOException {
+	public int confirmQRcode(String user, String id) throws IOException, NoSuchAlgorithmException, InvalidKeyException {
 
 		File folder = new File("qrRequests/");
 		File cif = new File(folder + "/data.cif");
