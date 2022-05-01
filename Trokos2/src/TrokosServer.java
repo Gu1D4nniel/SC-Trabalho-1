@@ -1,3 +1,5 @@
+
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -5,13 +7,19 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.AlgorithmParameters;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -21,8 +29,6 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.spec.InvalidKeySpecException;
-import java.util.Random;
-import java.util.Scanner;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -32,6 +38,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.PBEParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
@@ -46,7 +53,7 @@ import com.google.zxing.WriterException;
  * java TrokosServer clearDB 
  * limpa a db (ajuda a testar)
  */
-public class TrokosServer extends Thread {
+public class TrokosServer extends OperationsTrokos {
 
 	private Socket socket;
 	private static int port;
@@ -56,17 +63,11 @@ public class TrokosServer extends Thread {
 
 	private float startBalance = 100;
 
-	private final String ops = "------------------------------------------------------------\nOperaÁoes:\nbalance\nmakepayment <userID><amount>"
+	private final String ops = "------------------------------------------------------------\nOpera√ßoes:\nbalance\nmakepayment <userID><amount>"
 			+ "\nrequestpayment <userID> <valor>\nviewrequests\npayrequest <reqID>\nobtainQRcode <amount>\nconfirmQRcode <QRcode>"
 			+ "\nnewgroup <groupID>\naddu <userID><groupID>\ngroups"
-			+ "\ndividepayment <groupID><amount>\nstatuspayments <groupID>\nhistory< <groupID>"
+			+ "\ndividepayment <groupID><amount>\nstatuspayments <groupID>\nhistory\nquit"
 			+ "\n------------------------------------------------------------\n";
-
-	public TrokosServer(Socket sock) throws Exception {
-		socket = sock;
-		Operacoes op = new Operacoes();
-		op.run();
-	}
 
 	public static void main(String[] args) throws Exception {
 
@@ -91,6 +92,13 @@ public class TrokosServer extends Thread {
 		}
 
 		System.out.println("servidor: main\nport:" + port);
+		TrokosServer server = new TrokosServer();
+		server.startServer(port);
+
+	}
+
+	public void startServer(int porto) throws IOException {
+		ServerSocket sSoc = null;
 
 		System.setProperty("javax.net.ssl.keyStore", "stores/" + keystore);
 		System.setProperty("javax.net.ssl.keyStorePassword", keystore_pw);
@@ -99,17 +107,22 @@ public class TrokosServer extends Thread {
 		SSLServerSocket ss = (SSLServerSocket) ssf.createServerSocket(port);
 
 		while (true) {
-			new TrokosServer(ss.accept()).start();
+			try {
+				Socket inSoc = ss.accept();
+				ServerThread newServerThread = new ServerThread(inSoc);
+				newServerThread.start();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 
 		}
-
 	}
 
 	/**
 	 * Este metodo apaga todos os ficheiros que existem na db
 	 */
 	private static void clearDB() {
-		File fileToDelete = new File("db.txt");
+		File fileToDelete = new File("userx.txt");
 		fileToDelete.delete();
 
 		File folderData = new File("dataUsers");
@@ -178,14 +191,24 @@ public class TrokosServer extends Thread {
 
 	}
 
-	class Operacoes extends OperationsTrokos {
-		public void run() throws Exception {
+	class ServerThread extends Thread
+
+	{
+
+		private Socket socket = null;
+
+		ServerThread(Socket inSoc) {
+			socket = inSoc;
+
+		}
+
+		public void run() {
 			try {
 				ObjectOutputStream outStream = new ObjectOutputStream(socket.getOutputStream());
 				ObjectInputStream inStream = new ObjectInputStream(socket.getInputStream());
 
 				// cria db com users:passwords
-				File fileDb = new File("db.txt");
+				// File fileDb = new File("db.txt");
 
 				// cria folder com dados de cada user
 				File dataFile = new File("dataUsers");
@@ -214,45 +237,16 @@ public class TrokosServer extends Thread {
 				File userHistory = new File("history");
 				userHistory.mkdir();
 
-				// Tem o true pq senao faz sempre overwrite aos dados do ficheiro
-				PrintWriter pw = new PrintWriter(new FileWriter(fileDb, true));
-				Scanner sc = new Scanner(fileDb);
-
 				try {
 
-					String user = null;
-					String passwd = null;
-
 					// Servidor recebe o userId do cliente
-					user = (String) inStream.readObject();
-					System.out.println(user);
+					String user = (String) inStream.readObject();
+
+					// envia nonce
 
 					String nonce = generateNonce();
 					outStream.writeObject(nonce);
 					outStream.flush();
-					// recebe o tamanho do username e da passwd do client (em bytes)
-					// byte sizeU = (Byte) inStream.readObject();
-					// byte sizeP = (Byte) inStream.readObject();
-
-					// transforma o tamanho de bytes para inteiros
-					// int u = Byte.toUnsignedInt(sizeU);
-					// int p = Byte.toUnsignedInt(sizeP);
-
-					// char[] arrayU = new char[u + p + 1];
-
-					// cria buffers para receber password e username
-					// byte[] bufferU = new byte[arrayU.length];
-					// byte[] bufferP = new byte[p];
-
-					// recebe username
-					// inStream.read(bufferU, 0, bufferU.length);
-
-					// Verifica se o nonce que enviou ao cliente eh o que o servidor criou
-					String nRecebido = (String) inStream.readObject();
-					if (!nonce.equals(nRecebido)) {
-						// outStream.writeObject("o nonce recebido nao corresponde ao nonce criado pelo
-						// servidor");
-					}
 
 					// recebe assinatura do cliente
 					byte[] assinatura = (byte[]) inStream.readObject();
@@ -260,16 +254,102 @@ public class TrokosServer extends Thread {
 					// recebe o certificado do cliente
 					byte[] certificado = (byte[]) inStream.readObject();
 
-					// verifica se a assinatura pode ser corretamente verificada com a chave publica
-					// contida no certificado
-					int verificacao = verificaAssinatura(assinatura, certificado);
+					byte[] nonceAssinado = (byte[]) inStream.readObject();
 
-					if (verificacao == 0) {
-						// outStream.writeObject("A assinatura nao foi verificada pela chave publica
-						// recebida");
+					File db = new File("userx.txt");
+					FileOutputStream fos = new FileOutputStream(db, true);
+					if (!db.exists() || db.length() == 0 || contemUser(user) == 0) {
+						outStream.writeBoolean(false);
+						outStream.flush();
+
+						// recebe nonce vidno do cliente String nRecebido = (String)
+						String nRecebido = (String) inStream.readObject();
+						if (nonce.equals(nRecebido)) {
+							outStream.writeInt(1);
+							outStream.flush();
+						} else {
+							outStream.writeInt(0);
+							outStream.flush();
+							return;
+						}
+						int v = verificaAssinatura(assinatura, certificado);
+						if (v == 0) {
+							outStream.writeInt(0);
+							outStream.flush();
+							return;
+						} else {
+							outStream.writeInt(1);
+							outStream.flush();
+						}
+
+						fos.write((user + ":" + user + ".cer\n").getBytes());
+						criarConta(user);
+
+						outStream.writeObject("Utilizador registado e autenticado");
+						outStream.flush();
+
+						fos.close();
+					} else {
+						outStream.writeBoolean(true);
+						outStream.flush();
+
+						if (assinaturaNonce(nonce, nonceAssinado, certificado) == 0) {
+							outStream.writeInt(0);
+							outStream.flush();
+						} else {
+							outStream.writeInt(1);
+							outStream.flush();
+						}
+
+						outStream.writeObject("user autenticado");
+						outStream.flush();
+
 					}
 
-					int cifrarDados = cifrarDados(user, cifra_pw);
+					/*
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * // primeiro ve se existe ficheiro e dados no ficheiro if (contemUser(user)
+					 * ==0) { System.out.println(" nao contem"); // envia que user eh desconhecido
+					 * outStream.writeObject("Este user eh desconhecido"); outStream.flush();
+					 * 
+					 *
+					 * 
+					 * 
+					 * 
+					 * 
+					 * // verifica se a assinatura pode ser corretamente verificada com a chave
+					 * publica // contida no certificado int verificacao =
+					 * verificaAssinatura(assinatura, certificado);
+					 * 
+					 * if (verificacao == 0) { outStream.writeInt(1);
+					 * 
+					 * return; }
+					 * 
+					 * cifra(user, cifra_pw);
+					 * outStream.writeObject("Utilizador foi registado e autenticado");
+					 * 
+					 * } else { System.out.println("contem"); int checkUsers = contemUser(user);
+					 * System.out.println(user + ":" +checkUsers); /*if (checkUsers == 0) {
+					 * cifra(user, cifra_pw);
+					 * outStream.writeObject("userID adicionado ah database"); outStream.flush(); }
+					 * else {
+					 * 
+					 * byte[] nonceAssinado = (byte[]) inStream.readObject(); int
+					 * verificaAssinaturaNonce = assinaturaNonce(nonce, nonceAssinado, certificado);
+					 * if (verificaAssinaturaNonce == 0) { System.out.println("ERRO3"); }
+					 * outStream.writeObject("user autenticado"); outStream.flush();
+					 * 
+					 * }
+					 */
+
+					// recebe o nonce assinado e compara com o nonce criado pelo servidor
+
+					// System.out.println(nonce);
+					// CIFRAR OS DADOS
 
 					// separa o username e a password que recebeu do buffer cliente
 					// String line = new String(bufferU, StandardCharsets.UTF_8);
@@ -286,9 +366,15 @@ public class TrokosServer extends Thread {
 					 * (username.equals(user.trim()) && password.equals(passwd.trim())) {
 					 * System.out.println("user autenticado");
 					 * outStream.writeObject("Utilizador autenticado"); outStream.flush();
-					 */ outStream.writeObject(ops);
+					 */
+
+					outStream.writeObject(ops);
 					outStream.flush();
 
+					// criarConta(user);
+
+					// makepayment(user, "boy", 10);
+					// balance(user);
 					String respostaOp = (String) inStream.readObject();
 					System.out.println("O user escolheu:" + respostaOp);
 
@@ -498,6 +584,7 @@ public class TrokosServer extends Thread {
 						}
 					} else if (respostaOp.contains("groups") || respostaOp.charAt(0) == 'g') {
 						String grupos = groups(user);
+						System.out.println(grupos);
 						outStream.writeObject(grupos);
 						outStream.flush();
 						outStream.close();
@@ -535,6 +622,14 @@ public class TrokosServer extends Thread {
 							outStream.flush();
 							outStream.close();
 							addToHistory(user, respostaOp);
+						}else if (confirmQRcode(user, id) == 0) {
+								outStream.writeObject("Erro no pagamento");
+								outStream.flush();
+								outStream.close();
+						}else if (confirmQRcode(user, id) == -1) {
+							outStream.writeObject("Quem fez o pedido nao pode fazer pagamento");
+							outStream.flush();
+							outStream.close();
 						}
 					} else if (respostaOp.contains("history") || respostaOp.charAt(0) == 'h') {
 						String history = history(user);
@@ -545,19 +640,13 @@ public class TrokosServer extends Thread {
 					}
 
 					else {
-						outStream.writeObject("Por favor inisira um pedido v·lido");
+						outStream.writeObject("Por favor inisira um pedido v√°lido");
 						outStream.flush();
 						outStream.close();
 
 					}
 
 					return;
-					/*
-					 * if (username.equals(user.trim()) && !password.equals(passwd.trim())) {
-					 * System.out.println("password incorreta");
-					 * outStream.writeObject("Password incorreta"); outStream.flush();
-					 * outStream.close(); return; }
-					 */
 
 					// se nao existir no ficheiro cria um novo utilizador e a sua conta
 					// criarConta(user, passwd, outStream, pw);
@@ -566,24 +655,20 @@ public class TrokosServer extends Thread {
 					e1.printStackTrace();
 				} catch (FileNotFoundException e2) {
 					e2.printStackTrace();
-				} catch (WriterException e) {
+				} catch (NoSuchAlgorithmException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} catch (CertificateException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
-				} catch (IllegalBlockSizeException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (BadPaddingException e) {
+				} catch (WriterException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 
 				outStream.close();
 				inStream.close();
-				pw.close();
-				sc.close();
+
 				socket.close();
 
 			} catch (IOException e) {
@@ -591,74 +676,222 @@ public class TrokosServer extends Thread {
 			}
 		}
 
-		private int cifrarDados(String user, String cifra_pw) throws Exception {
-			String cert = user + ".cer";
-			byte[] toCipher = (user + ":" + cert).getBytes();
-			FileOutputStream outFile = new FileOutputStream("users.txt", true);
-			byte[] salt = { (byte) 0xc9, (byte) 0x36, (byte) 0x78, (byte) 0x99, (byte) 0x52, (byte) 0x3e, (byte) 0xea,
-					(byte) 0xf2 };
+		private void addToDb(String user) throws FileNotFoundException {
+			File file = new File("users.txt");
+			FileInputStream fis = new FileInputStream(file);
 
-			PBEKeySpec keySpec = new PBEKeySpec(cifra_pw.toCharArray(), salt, 20); // pass, salt, iterations
-			SecretKeyFactory kf;
+			FileInputStream fisParam = new FileInputStream("params.txt");
+			FileInputStream fisKey = new FileInputStream("key.key");
+
+			byte[] bytes;
 			try {
-				kf = SecretKeyFactory.getInstance("PBEWithHmacSHA256AndAES_128");
-				SecretKey key = kf.generateSecret(keySpec);
-				Cipher c = Cipher.getInstance("PBEWithHmacSHA256AndAES_128");
-				c.init(Cipher.ENCRYPT_MODE, key);
+				bytes = fisParam.readAllBytes();
+				byte[] key = fisKey.readAllBytes();
+				SecretKey originalKey = new SecretKeySpec(key, 0, key.length, "AES");
+				AlgorithmParameters p = AlgorithmParameters.getInstance("PBEWithHmacSHA256AndAES_128");
 
-				byte[] output = c.doFinal(toCipher);
-				if (output != null)
-					outFile.write(output);
+				p.init(bytes);
+				Cipher d = Cipher.getInstance("PBEWithHmacSHA256AndAES_128");
+				d.init(Cipher.DECRYPT_MODE, originalKey, p);
 
-				outFile.flush();
-				outFile.close();
+				byte[] in = new byte[2048];
+				int read;
+				while ((read = fis.read(in)) != -1) {
+					byte[] output = d.update(in, 0, read);
+
+				}
+				String t = "";
+				byte[] output = d.doFinal();
+				for (byte b : output) {
+					t += (char) b;
+
+				}
+				t += "\n";
+
+				// criaDB(t);
+				fisParam.close();
+				fisKey.close();
+				fis.close();
+				System.out.println(t);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			} catch (NoSuchAlgorithmException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			} catch (InvalidKeySpecException e) {
+			} catch (IllegalBlockSizeException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			} catch (InvalidKeyException e) {
+			} catch (BadPaddingException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} catch (NoSuchPaddingException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			} catch (IOException e) {
+			} catch (InvalidKeyException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InvalidAlgorithmParameterException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			// -------------------------------APENAS TESTE
-/*
-			PBEKeySpec pbeKeySpec = new PBEKeySpec(cifra_pw.toCharArray());
-			SecretKeyFactory secretKeyFactory = SecretKeyFactory.getInstance("PBEWithHmacSHA256AndAES_128");
-			SecretKey secretKey = secretKeyFactory.generateSecret(pbeKeySpec);
 
-			FileInputStream fis = new FileInputStream("users.txt");
-			salt = new byte[8];
-			fis.read(salt);
+		}
 
-			PBEParameterSpec pbeParameterSpec = new PBEParameterSpec(salt, 20);
+		private void criaDB(String user) {
 
-			Cipher cipher = Cipher.getInstance("PBEWithHmacSHA256AndAES_128");
-			cipher.init(Cipher.DECRYPT_MODE, secretKey, pbeParameterSpec);
-			FileOutputStream fos = new FileOutputStream("plainfile_decrypted.txt");
-			byte[] in = new byte[64];
-			int read;
-			while ((read = fis.read(in)) != -1) {
-				byte[] output = cipher.update(in, 0, read);
-				if (output != null)
-					fos.write(output);
+			String cert = user + ".cer\n";
+			byte[] toCipher = (user + ":" + cert).getBytes();
+
+			byte[] salt = { (byte) 0xc9 };
+			FileOutputStream fos;
+			FileOutputStream fosKey;
+			try {
+				fos = new FileOutputStream("users.txt");
+				PBEKeySpec keySpec = new PBEKeySpec(cifra_pw.toCharArray(), salt, 20); // pass, salt, iterations
+				SecretKeyFactory kf = SecretKeyFactory.getInstance("PBEWithHmacSHA256AndAES_128");
+				SecretKey key = kf.generateSecret(keySpec);
+
+				fosKey = new FileOutputStream("key.key");
+				fosKey.write(key.getEncoded());
+				Cipher c = Cipher.getInstance("PBEWithHmacSHA256AndAES_128");
+				c.init(Cipher.ENCRYPT_MODE, key);
+
+				fos.write(c.doFinal(toCipher));
+				// fos.write("\n".getBytes());
+
+				fos.close();
+
+				byte[] params = c.getParameters().getEncoded(); // we need to get the various
+
+				// guardar os parametros da cifra
+				FileOutputStream paramFos = new FileOutputStream("params.txt");
+
+				paramFos.write(params);
+
+				paramFos.close();
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (NoSuchAlgorithmException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IllegalBlockSizeException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (BadPaddingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (NoSuchPaddingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InvalidKeyException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InvalidKeySpecException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 
-			byte[] output = cipher.doFinal();
-			if (output != null)
-				fos.write(output);
+		}
 
-			fis.close();
-			fos.flush();
-			fos.close();
-*/
+		private void cifra(String user, String cifra_pw) {
+			String cert = user + ".cer";
+			byte[] toCipher = (user + ":" + cert).getBytes();
+			System.out.println(user);
+			System.out.println(cert);
+
+			byte[] salt = { (byte) 0xc9, (byte) 0x36, (byte) 0x78, (byte) 0x99, (byte) 0x52, (byte) 0x3e, (byte) 0xea,
+					(byte) 0xf2 };
+			FileOutputStream fos;
+			try {
+				fos = new FileOutputStream("users.txt", true);
+				PBEKeySpec keySpec = new PBEKeySpec(cifra_pw.toCharArray(), salt, 20); // pass, salt, iterations
+				SecretKeyFactory kf = SecretKeyFactory.getInstance("PBEWithHmacSHA256AndAES_128");
+				SecretKey key = kf.generateSecret(keySpec);
+
+				Cipher c = Cipher.getInstance("PBEWithHmacSHA256AndAES_128");
+				c.init(Cipher.ENCRYPT_MODE, key);
+
+				fos.write(c.doFinal(toCipher));
+				// fos.write("\n".getBytes());
+
+				fos.close();
+
+				byte[] params = c.getParameters().getEncoded(); // we need to get the various
+
+				// guardar os parametros da cifra
+				FileOutputStream paramFos = new FileOutputStream(user + ".params.txt");
+
+				paramFos.write(params);
+
+				paramFos.close();
+
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			// Generate the key based on the password
+			catch (InvalidKeySpecException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InvalidKeyException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (NoSuchAlgorithmException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (NoSuchPaddingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IllegalBlockSizeException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (BadPaddingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+		}
+
+		private int assinaturaNonce(String nonce, byte[] nonceAssinado, byte[] certificado)
+				throws CertificateException {
+			CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+			Certificate certificate = cf.generateCertificate(new ByteArrayInputStream(certificado));
+			PublicKey pk = certificate.getPublicKey();
+			Signature s;
+
+			try {
+				s = Signature.getInstance("MD5withRSA");
+				s.initVerify(pk);
+				// transforma o nonce criado pelo servidor num array de bytes para comparar com
+				// a
+				// nonce assinada recebida do cliente
+				byte[] buf = nonce.getBytes();
+				s.update(buf);
+
+				if (s.verify(nonceAssinado)) {
+					return 1;
+				} else {
+					return 0;
+				}
+			} catch (NoSuchAlgorithmException e) {
+
+				e.printStackTrace();
+			} catch (SignatureException e) {
+
+				e.printStackTrace();
+			} catch (InvalidKeyException e) {
+
+				e.printStackTrace();
+			}
 			return 0;
 		}
 
@@ -671,7 +904,7 @@ public class TrokosServer extends Thread {
 			Signature s;
 			try {
 				s = Signature.getInstance("MD5withRSA");
-				s.initVerify(certificate);
+				s.initVerify(pk);
 
 				if (s.verify(assinatura)) {
 					return 1;
@@ -707,42 +940,57 @@ public class TrokosServer extends Thread {
 		}
 
 		private void addToHistory(String user, String respostaOp) throws IOException {
+			File folder = new File("history/");
 			File file = new File("history/" + user + ".txt");
 
 			PrintWriter pw = new PrintWriter(new FileWriter(file, true));
 
 			pw.println(respostaOp);
 			pw.close();
+			cifraData(folder, user);
 
 		}
 
-		/**
-		 * metodo que adiciona o user na db e cria um outro file com os seus
-		 * dados(balance, requests, etc)
-		 * 
-		 * @param user      nome do utilizador
-		 * @param passwd    password do utilizador
-		 * @param outStream stream que envia mensagem ao utilizador quando eh criado a
-		 *                  sua conta
-		 * @param pw        printwriter para inserir os dados na db
-		 * @throws IOException
-		 */
-		private void criarConta(String user, String passwd, ObjectOutputStream outStream, PrintWriter pw)
-				throws IOException {
-
-			pw.println(user + ":" + passwd);
+		private void criarConta(String user) throws IOException {
+			File folder = new File("dataUsers/");
 			File fileUser = new File("dataUsers/" + user + ".txt");
-			PrintWriter userWriter = new PrintWriter(new FileWriter(fileUser, true));
+
+			PrintWriter userWriter = new PrintWriter(new FileWriter(fileUser));
 
 			userWriter.println("Balance:" + startBalance);
 			userWriter.println("Owner of (groups):");
 			userWriter.println("Member of (groups):");
 
-			outStream.writeObject("Utilizador " + user + " foi criado com sucesso");
-			outStream.flush();
 			userWriter.close();
+
+			cifraData(folder, user);
 
 		}
 
+		private int contemUser(String user) throws IOException {
+			FileInputStream fis = new FileInputStream("userx.txt");
+			InputStream ips = new BufferedInputStream(fis);
+			String text = "";
+
+			int i;
+			while ((i = ips.read()) != -1) {
+				text += (char) i;
+			}
+
+			String[] line = text.split("\n");
+
+			for (String l : line) {
+
+				if (l.contains(user)) {
+
+					return 1;
+				}
+			}
+
+			ips.close();
+			return 0;
+		}
+
 	}
+
 }
