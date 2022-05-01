@@ -1,4 +1,6 @@
+import java.io.File;
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 
 import com.google.zxing.WriterException;
 
@@ -6,7 +8,7 @@ public interface Operations {
 
 	int makepayment(String user, String destino, float valor) throws IOException;
 
-	float balance(String user) throws IOException;
+	float balance(String user) throws IOException, NoSuchAlgorithmException;
 
 	//newgroup
 	int criaGrupo(String user, String nomeGrupo) throws IOException;
@@ -19,7 +21,7 @@ public interface Operations {
 
 	String viewrequests(String user) throws IOException;
 
-	int payrequest(String id, String user) throws IOException;
+	int payrequest(String id, String user) throws IOException, NoSuchAlgorithmException;
 
 	String obtainQRcode(String user, float valor) throws WriterException, IOException;
 
@@ -30,4 +32,6 @@ public interface Operations {
 	int confirmQRcode(String user, String id) throws IOException;
 	
 	 String history(String user) throws IOException;
+	 
+	 void cifraData(File folder, String user );
 }
