@@ -71,25 +71,7 @@ public class Trokos {
 			ObjectInputStream in = new ObjectInputStream(s.getInputStream());
 			ObjectOutputStream out = new ObjectOutputStream(s.getOutputStream());
 
-			Scanner sc = new Scanner(System.in);
-
-			/*
-			 * String dados = user + ":" + passwd;
-			 * 
-			 * byte[] bDados = new byte[dados.length()];
-			 * 
-			 * // converte os tamanhos dos ararys em bytes byte sizeU = (byte)
-			 * args[1].length(); byte sizeP = (byte) args[2].length();
-			 * 
-			 * // envia o tamanho do username e da password ao servidor
-			 * out.writeObject(sizeU); out.writeObject(sizeP);
-			 * 
-			 * // converte os dados em bytes e poe no buffer char[] dadosArray =
-			 * dados.toCharArray(); int i = 0; for (char c : dadosArray) { bDados[i] =
-			 * (byte) c; i++; }
-			 * 
-			 * 
-			 */
+			Scanner sc = new Scanner(System.in);			 
 
 			// O cliente envia o userID ao servidor
 			out.writeObject(user);
@@ -117,7 +99,7 @@ public class Trokos {
 			boolean respostaBool = in.readBoolean();
 			System.out.println(respostaBool);
 
-			// Devolve nonce ao servidor
+		
 			
 
 			String resposta="";
@@ -154,41 +136,10 @@ public class Trokos {
 				 resposta = (String) in.readObject();
 				System.out.println(resposta);
 			}
-			// recebe que user eh desconhecido
-			// String resposta = (String) in.readObject();
-			// System.out.println(resposta);
-
-			// Caso o nonce n corresponda
-
-			/*
-			 * if ((int) in.readInt() == 0)
-			 * System.out.println("Nonce nao corresponde ao nonce no servidor"); // Caso a
-			 * assinatura nao esteja certa if ((int) in.readInt() == 1)
-			 * System.out.println("Assinatura esta incorreta");
-			 */
-			// String autenticado = (String) in.readObject();
-			// System.out.println(autenticado);
-
-			// Nonce assinado para enviar ao servidor
-			/*
-			 *
-			 */
-
-			// autenticado = (String) in.readObject();
-			// System.out.println(autenticado);
-			// String respostaLogin = (String) in.readObject();
-			// System.out.println(respostaLogin);
-
-			// Mudar por um enum(?)
-			// if (respostaLogin.equals("Utilizador autenticado")) {
-			/*
-			 * String ops = (String) in.readObject(); System.out.println(ops); String ops2 =
-			 * (String) in.readObject(); System.out.println(ops2);
-			 */
-			
+						
 			 String ops = (String)in.readObject(); 
 			 System.out.println(ops);
-			 //NO SERVER ESTA ALGUMA COISA A ESPERA ANTES DE ENVIAR AS OPS
+		
 			
 		
 			System.out.println("Escreva o que deseja fazer: ");

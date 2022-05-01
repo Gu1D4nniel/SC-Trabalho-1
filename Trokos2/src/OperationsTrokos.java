@@ -6,7 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectOutputStream;
+
 import java.io.OutputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -137,7 +137,7 @@ public class OperationsTrokos implements Operations {
 	 * @param user   nome do ficheiro
 	 * @throws IOException
 	 */
-	private void decifraData(File folder, String user) throws IOException {
+	public void decifraData(File folder, String user) throws IOException {
 
 		// folder = "xxxxxx/"
 		FileInputStream key = new FileInputStream(folder + "/" + user + ".key");
@@ -197,18 +197,26 @@ public class OperationsTrokos implements Operations {
 	 * @throws FileNotFoundException
 	 */
 	public int makepayment(String user, String destino, float valor) throws IOException {
-		/*
-		 * Scanner sc = new Scanner(new File("db.txt"));
-		 * 
-		 * // procura o destino na db int check = 0; while ((sc.hasNextLine())) { String
-		 * input = sc.nextLine();
-		 * 
-		 * if (input.contains(destino.trim())) { check = 1; } } // Nao existe o destino
-		 * if (check == 0) { return check; } // User e destino sao iguais if
-		 * (user.equals(destino)) { check = -2; return check;
-		 * 
-		 * }
-		 */
+
+		Scanner sc = new Scanner(new File("userx.txt"));
+
+		int check = 0;
+		while ((sc.hasNextLine())) {
+			String input = sc.nextLine();
+
+			if (input.contains(destino.trim())) {
+				check = 1;
+			}
+		} // Nao existe o destino
+		if (check == 0) {
+			return check;
+		} // User e destino sao iguais
+		if (user.equals(destino)) {
+			check = -2;
+			return check;
+
+		}
+
 		File folder = new File("dataUsers/");
 		File cif = new File(folder + "/" + user + ".cif");
 		if (cif.exists()) {
@@ -327,21 +335,28 @@ public class OperationsTrokos implements Operations {
 	 */
 	public int requestpayment(String user, String destino, float valor) throws IOException {
 
-		// Scanner sc = new Scanner(new File("db.txt"));
+		Scanner sc = new Scanner(new File("userx.txt"));
+		int check = 0;
+		while ((sc.hasNextLine())) {
+			String input = sc.nextLine();
+
+			if (input.contains(destino.trim())) {
+				check = 1;
+			}
+		}
+		// Nao existe o destino
+		if (check == 0) {
+			return check;
+		}
+		
 		File folder = new File("requests/");
 		File cif = new File("requests/" + destino + ".cif");
 		if (cif.exists())
 			decifraData(folder, destino);
 
-		int check = 1;
-		/*
-		 * while ((sc.hasNextLine())) { String input = sc.nextLine();
-		 * 
-		 * if (input.contains(destino.trim())) { check = 1; } }
-		 */ // Nao existe o destino
-		if (check == 0) {
-			return check;
-		}
+		
+
+		
 
 		File file = new File("requests/" + destino + ".txt");
 
@@ -652,12 +667,9 @@ public class OperationsTrokos implements Operations {
 		// SE DESTINO NAO FOR NOME DE UM GRUPO FAZ ISTO
 		if (!new File("groupPayments/" + destino + ".cif").exists()) {
 
-			
-			
 			FileOutputStream fin = new FileOutputStream(file, false);
 			OutputStream ops = new BufferedOutputStream(fin);
 
-			
 			int check = 1;
 
 			// Se o ficheio nao possuir o id retorna -2 (nao existe este id)
@@ -670,7 +682,7 @@ public class OperationsTrokos implements Operations {
 			for (String l : lines) {
 				payment = l.split("/");
 				if (l.contains(id) && payment[0].equals(id)) {
-					
+
 					String receiver = payment[1];
 					System.out.println(receiver);
 					float amount = Float.parseFloat(payment[2]);
@@ -752,7 +764,7 @@ public class OperationsTrokos implements Operations {
 				ops2.write((m + ",").getBytes());
 			}
 			ops2.close();
-			
+
 			cifraData(folder, destino);
 
 			// Subtrai o balance com o valor a pagar ao grupo
@@ -762,7 +774,6 @@ public class OperationsTrokos implements Operations {
 
 			addToGroupHistory(destino, valor);
 
-			
 			return 1;
 		}
 
@@ -800,7 +811,7 @@ public class OperationsTrokos implements Operations {
 
 		if (valor == 0) {
 			file.delete();
-			
+
 			File fileGroupHistory = new File("groupHistory/" + destino + ".txt");
 			FileOutputStream fin = new FileOutputStream(fileGroupHistory, true);
 			OutputStream ops = new BufferedOutputStream(fin);
@@ -979,7 +990,7 @@ public class OperationsTrokos implements Operations {
 		float toPay = valor / size;
 
 		File fileGroupRequest = new File("groupPayments/" + nomeGrupo + ".txt");
-		
+
 		File folderPayment = new File("groupPayments");
 		if (fileGroupRequest.isFile() && fileGroupRequest.exists()) {
 			check = -2;
@@ -1003,7 +1014,7 @@ public class OperationsTrokos implements Operations {
 			cifraData(folder, nomeGrupo);
 			return check;
 		}
-		
+
 		cifraData(folderPayment, nomeGrupo);
 		cifraData(folder, nomeGrupo);
 		return check;
@@ -1059,8 +1070,8 @@ public class OperationsTrokos implements Operations {
 		for (String m : splitMembros) {
 			resposta += (m + " ");
 		}
-		if(file.exists())
-		cifraData(folder, nomeGrupo);
+		if (file.exists())
+			cifraData(folder, nomeGrupo);
 		return resposta;
 
 	}

@@ -34,4 +34,6 @@ public interface Operations {
 	 String history(String user) throws IOException;
 	 
 	 void cifraData(File folder, String user );
+	 
+	 void decifraData(File folder, String user) throws IOException ;
 }
