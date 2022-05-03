@@ -256,7 +256,7 @@ public class TrokosServer extends OperationsTrokos {
 
 						// recebe nonce vindo do cliente String nRecebido = (String)
 						String nRecebido = (String) inStream.readObject();
-						System.out.println(nRecebido);
+						
 						if (nonce.equals(nRecebido)) {
 							outStream.writeInt(1);
 							outStream.flush();
@@ -592,7 +592,22 @@ public class TrokosServer extends OperationsTrokos {
 							outStream.close();
 							return;
 						}
+						
 						String id = split[1];
+						//Dados a enviar ao cliente para ele assinar
+						String pedido = getPedido(id);
+						
+						String[] linePedido = pedido.split("/");
+						String destino = linePedido[0];
+						String valor = linePedido[1];
+						String line = destino+"/"+valor;
+				
+						outStream.writeObject(line);
+						outStream.flush();
+						
+						byte[] assinaturaTransacao = (byte[]) inStream.readObject();
+						int confirma = verificaTransacao(user, line, assinaturaTransacao);
+						if(confirma ==1) {
 						if (confirmQRcode(user, id) == 1) {
 							outStream.writeObject("Pagamento feito com sucesso");
 							outStream.flush();
@@ -606,6 +621,12 @@ public class TrokosServer extends OperationsTrokos {
 							outStream.writeObject("Quem fez o pedido nao pode fazer pagamento");
 							outStream.flush();
 							outStream.close();
+						}
+						}else {
+							outStream.writeObject("Assinatura da transacao nao esta correta");
+							outStream.flush();
+							outStream.close();
+							return;
 						}
 					} else if (respostaOp.contains("history") || respostaOp.charAt(0) == 'h') {
 						String history = history(user);
@@ -647,6 +668,33 @@ public class TrokosServer extends OperationsTrokos {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+		}
+
+		private String getPedido(String id) throws IOException {
+			File folder = new File ("qrRequests");
+			File cif = new File(folder+"/data.cif");
+			if(cif.exists())
+				decifraData(folder, "data");
+			
+			File file = new File(folder+"/data.txt");
+			FileInputStream fis = new FileInputStream(file);
+			
+			String data = "";
+			int i;
+			while ((i = fis.read()) != -1) {
+				data += (char) i;
+			}
+			
+			fis.close();
+			String pedido ="";
+			String[] lines = data.split("\n");
+			for(String l: lines) {
+				if (l.contains(id)){
+					pedido = l;
+				}
+			}
+			cifraData(folder, "data");
+			return pedido;
 		}
 
 		private int verificaTransacao(String user, String compara, byte[] assinaturaTransacao)

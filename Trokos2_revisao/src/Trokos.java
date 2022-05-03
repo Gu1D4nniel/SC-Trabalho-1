@@ -189,8 +189,17 @@ public class Trokos {
 				System.out.println(respostaPedido);
 			} else if (respostaOp.contains("confirmQRcode") || respostaOp.charAt(0) == 'c') {
 				
+				String request = (String) in.readObject();
+				String [] split = request.split("/");
+				String destino = split[0];
+				String valor = split[1];
 				
+				byte[] assinatura = assinaTransacao(destino, valor, user, keystore_pw);
+				out.writeObject(assinatura);
+				out.flush();
 				
+				String respostaPedido = (String) in.readObject();
+				System.out.println(respostaPedido);
 				
 				// RESPOSTA DE OPERACOES NORMAIS
 			} else {

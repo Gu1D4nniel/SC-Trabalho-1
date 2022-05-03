@@ -198,10 +198,10 @@ public class OperationsTrokos implements Operations {
 	 */
 	public int makepayment(String user, String destino, float valor) throws IOException {
 
-		//Scanner sc = new Scanner(new File("userx.txt"));
+		Scanner sc = new Scanner(new File("userx.txt"));
 
 		int check = 0;
-	/*	while ((sc.hasNextLine())) {
+		while ((sc.hasNextLine())) {
 			String input = sc.nextLine();
 
 			if (input.contains(destino.trim())) {
@@ -215,7 +215,7 @@ public class OperationsTrokos implements Operations {
 			check = -2;
 			return check;
 
-		}*/
+		}
 
 		File folder = new File("dataUsers/");
 		File cif = new File(folder + "/" + user + ".cif");
@@ -335,9 +335,9 @@ public class OperationsTrokos implements Operations {
 	 */
 	public int requestpayment(String user, String destino, float valor) throws IOException {
 
-		//Scanner sc = new Scanner(new File("userx.txt"));
+		Scanner sc = new Scanner(new File("userx.txt"));
 		int check = 1;
-		/*while ((sc.hasNextLine())) {
+		while ((sc.hasNextLine())) {
 			String input = sc.nextLine();
 
 			if (input.contains(destino.trim())) {
@@ -347,7 +347,7 @@ public class OperationsTrokos implements Operations {
 		// Nao existe o destino
 		if (check == 0) {
 			return check;
-		}*/
+		}
 		
 		File folder = new File("requests/");
 		File cif = new File("requests/" + destino + ".cif");
@@ -1170,6 +1170,7 @@ public class OperationsTrokos implements Operations {
 
 		String[] lines = data.split("\n");
 		for (String l : lines) {
+			System.out.println(l);
 			String[] lineData = l.split("/");
 
 			if (lineData[2].equals(id.trim())) {
